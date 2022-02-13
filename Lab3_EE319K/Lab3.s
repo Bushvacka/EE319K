@@ -1,5 +1,5 @@
 ;****************** Lab3.s ***************
-; Program written by: Put your names here
+; Program written by: Akhil Giridhar and Troy Dutton
 ; Date Created: 2/4/2017
 ; Last Modified: 1/10/2022
 ; Brief description of the program
@@ -154,7 +154,7 @@ calculate_count
 	 
 	 ; Divide by time
 	 LDR R6, =FREQUENCY
-	 LDR R6, [R6]
+	 LDRB R6, [R6]
 	 
 	 UDIV R5, R6
 	 UDIV R7, R6
@@ -299,3 +299,4 @@ breathe_end
 
      ALIGN      ; make sure the end of this section is aligned
      END        ; end of file
+
