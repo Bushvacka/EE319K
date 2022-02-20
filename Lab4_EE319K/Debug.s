@@ -257,10 +257,10 @@ time_done
 ; Save all registers (not AAPCS) 
 Debug_Beat
       PUSH {R0-R2,LR}
-	  ; If beat_count < 200, don't toggle the LED. Increment beat_count
+	  ; If beat_count < 300, don't toggle the LED. Increment beat_count
 	  LDR R0, =beat_count
 	  LDR R1, [R0]
-	  CMP R1, #200
+	  CMP R1, #300
 	  BLO beat_inc
 	  ; Resets beat_count
 	  MOV R1, #0
