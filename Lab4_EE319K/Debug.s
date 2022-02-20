@@ -1,5 +1,5 @@
 ;****************** Debug.s ***************
-; Program written by: **-UUU-*Your Names**update this***
+; Program written by: Akhil Giridhar and Troy Dutton
 ; Date Created: 2/14/2017
 ; Last Modified: 1/10/2022
 
