@@ -1,6 +1,6 @@
 // Lab5.c starter program EE319K Lab 5, Spring 2022
 // Runs on TM4C123
-// Put your names here
+// Troy Dutton, Akhil Giridhar
 // Last Modified: 1/11/2021
 
 /* Option A1, connect LEDs to PB5-PB0, switches to PA5-3, walk LED PF321
@@ -64,7 +64,7 @@ StateType FSM[12]={
 
 int main(void){ 
   DisableInterrupts();
-  TExaS_Init(NONE);
+  TExaS_Init(GRADER);
   SysTick_Init();   // Initialize SysTick for software waits
   // initialize system
 	// Clock
@@ -95,62 +95,3 @@ int main(void){
     CS = FSM[CS].Next[Input];
   }
 }
-
-
-/*
-typedef enum StateId {S5, S6, S10, S9} StateId_t;
-#define T1sec 10   // Lower this to 10 to run simulation 
-                    // and see changes in Logic Analyzer
-struct State{
-  uint8_t Out;           
-  uint32_t Delay; 
-  StateId_t Next[4]; 
-};
-typedef const struct State StateType;
-
-StateType FSM[4]={
-  {5, T1sec, S5, S6, S9, S5},
-  {6, T1sec, S6,S10, S5, S6},
-  {10,T1sec,S10, S9, S6,S10},
-  {9, T1sec, S9, S5,S10, S9}
-};
-StateId_t CS;  // Current State
-#define STEPPER  (*((volatile uint32_t *)0x4000703C))
-#define INPUT  (*((volatile uint32_t *)0x40006300))
-uint32_t Input;
-void Initialize(void);
-
-
-int main(void){
-  Initialize();
-  CS = S5; // Set initial state;
-  while(1){
-    STEPPER = FSM[CS].Out;           // Output for Current State
-    SysTick_Wait10ms(FSM[CS].Delay); // Dwell in Current State
-    Input = (INPUT>>6);              // Read Input: 0,1,2,3
-    CS = FSM[CS].Next[Input];        // Next State
-  }
-}
-
-void Initialize(){
-	PLL_Init(Bus80MHz);      // Program 4.6
-  SysTick_Init();          // Program 4.7
-  SYSCTL_RCGCGPIO_R |= 0x0C;  // 1) port C,D clock enabled              
-  GPIO_PORTD_LOCK_R = 0x4C4F434B;  // unlock GPIO Port D
-  GPIO_PORTD_CR_R = 0xFF;          // allow changes to PD7-0
-  GPIO_PORTC_AMSEL_R &= ~0xC0;      // 3) disable analog function
-  GPIO_PORTD_AMSEL_R &= ~0x0F;      // 3) disable analog function
-  GPIO_PORTC_PCTL_R &= ~0xFF000000; // 4) GPIO
-  GPIO_PORTD_PCTL_R &= ~0x0000FFFF; // 4) GPIO
-  GPIO_PORTD_DIR_R |= 0x0F;   // 5) make PD3-0 out
-  GPIO_PORTC_DIR_R &= ~0xC0;  //    make PC7-6 input
-  GPIO_PORTC_AFSEL_R &= ~0xC0;// 6) disable alt func on PC7-6
-  GPIO_PORTD_AFSEL_R &= ~0x0F;// 6) disable alt func on PD3-0
-  GPIO_PORTD_DR8R_R |= 0x0F;  // enable 8 mA drive on PD7-6,3-0
-  GPIO_PORTC_DEN_R |= 0xC0;   // 7) enable digital I/O on PC7-6
-  GPIO_PORTD_DEN_R |= 0x0F;   // 7) enable digital I/O on PD3-0
-}
-*/
-
-
-
