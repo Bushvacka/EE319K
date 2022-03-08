@@ -52,7 +52,7 @@ Start
       STR  R0,[R1]      ; Ran=3
 ; TExaS_Init sets bus clock at 80 MHz, interrupts, ADC1, TIMER3, TIMER5, and UART0
 ;***YOU MAY CHANGE THE R0 PARAMETER TO 0,1,2,or 3
-      MOV  R0,#2  ;0 for TExaS oscilloscope, 1 for PD3-PB50 logic analyzer, 2 for Lab4 grader, 3 for none
+      MOV  R0,#1  ;0 for TExaS oscilloscope, 1 for PD3-PB50 logic analyzer, 2 for Lab4 grader, 3 for none
       BL   TExaS_Init   ; enables interrupts, prints the pin selections based on your EID1 EID2
 ;---Your Initialization------------
       BL   Debug_Init  ; you write this
