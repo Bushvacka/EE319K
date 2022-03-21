@@ -86,13 +86,14 @@ int staticmain(void){
 }
 
 uint32_t input; // Holds data from PA5-2
-uint8_t switchHandled = 0; // Determines whether a change in inputs has been handled
 uint32_t period; // Holds the calculated period for a note
+uint32_t heartBeat = 0; // Holds a counter for toggling the PF2 heartbeat
+uint8_t switchHandled = 0; // Determines whether a change in inputs has been handled
 const double frequencies[4] = {246.9, 311.1, 370.0, 415.3}; // Key0=246.9, Key1=311.1, Key2=370.0, Key3=415.3 Hz
      
-int main(void){       
+int main(void){
   DisableInterrupts();
-  TExaS_Init(SIMULATIONGRADER);    // bus clock at 80 MHz
+  TExaS_Init(REALBOARDGRADER);    // bus clock at 80 MHz
   Key_Init();
   LaunchPad_Init();
   Sound_Init();
@@ -106,15 +107,22 @@ int main(void){
 	GPIO_PORTF_DIR_R |= 0x4;
 	GPIO_PORTF_DEN_R |= 0x4;
 	// Set initial input to 0
-  while(1){                
+  while(1){
+		// Handle sound output
 		input = Key_In();
 		if (input != 0 && switchHandled == 0) { // If a key has been pressed
 				switchHandled = 1; // Mark the event as handled
-				period = (1/frequencies[(int) log2((double) input)])*1000000; // Period = 1/f µs
+				period = (1/frequencies[(int) log2((double) input)])*1000000; // Period = 1/f Âµs
 				Sound_Start(period);
 		} else if (input == 0 && switchHandled == 1) { // If a key is released
 			switchHandled = 0; // Clear the handled flag for future events
 			Sound_Off(); // Turn off the note
+		}
+		// Handle heartbeat
+		heartBeat++;
+		if (heartBeat > 733137){ // ~2Hz
+			heartBeat = 0; // Reset counter
+			GPIO_PORTF_DATA_R ^= 0x4; // Toggle PF2
 		}
   }             
 }
