@@ -66,7 +66,7 @@ writecommand
 BusyC1
 	LDR R1, =SSI0_SR_R
 	LDR R2, [R1]
-	AND R2, #0x10
+	ANDS R2, #0x10
 	BNE BusyC1
 	; Set D/C to 0-Command
 	LDR R1, =GPIO_PORTA_DATA_R
@@ -80,10 +80,10 @@ BusyC1
 BusyC2
 	LDR R1, =SSI0_SR_R
 	LDR R2, [R1]
-	AND R4, R2, #0x10
+	ANDS R2, R2, #0x10
 	BNE BusyC2
 	; Restore registers & return
-	PUSH {R1, R2}
+	POP {R1, R2}
     BX  LR
 
 
@@ -103,7 +103,7 @@ writedata
 BusyD
 	LDR R1, =SSI0_SR_R
 	LDR R2, [R1]
-	AND R2, #0x2
+	ANDS R2, #0x2
 	BEQ BusyD
 	; Set D/C to 1-Data
 	LDR R1, =GPIO_PORTA_DATA_R
@@ -114,6 +114,7 @@ BusyD
 	LDR R1, =SSI0_DR_R
 	STRB R0, [R1]
 	; Restore registers & return
+	POP {R1, R2}
     BX  LR
 
 
