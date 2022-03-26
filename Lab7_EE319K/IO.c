@@ -29,6 +29,8 @@ void IO_Init(void) {
 	GPIO_PORTF_DIR_R &= ~0x10;
 	GPIO_PORTF_DIR_R |= 0x04;
 	GPIO_PORTF_DEN_R |= 0x14;
+	// Enable PF4 PUR
+	GPIO_PORTF_PUR_R |= 0x10;
 	// Initialize heartbeat counter
 	heartBeat = 0;
 }
@@ -52,17 +54,17 @@ void IO_HeartBeat(void) {
 // Delay to debounce the switch
 // Input: none
 // Output: none
+uint8_t data;
 void IO_Touch(void) {
 	// --UUU-- wait for release; delay for 20ms; and then wait for press
-	uint8_t data = 0;
 	// Wait for switch release
 	do {
-		data = GPIO_PORTF_DATA_R & 0x10;
+		data = (GPIO_PORTF_DATA_R & 0x10) >> 4;
 	}while (data == 1);
 	// Debounce
 	Delay1ms(20);
 	// Wait for switch press
 	do {
-		data = GPIO_PORTF_DATA_R & 0x10;
+		data = (GPIO_PORTF_DATA_R & 0x10) >> 4;
 	}while (data == 0);
 	}
