@@ -132,8 +132,9 @@ LCD_Fix_Loop
 	 LDR R4, [FP, #Count]
 	 ADD R4, #1
 	 STR R4, [FP, #Count]
-	 B LCD_Fix_Done
-	 
+	 B LCD_Fix_Loop
+	 ; 8.965
+	 ; 01234
 	 ; Write digits in fixed-point format
 LCD_Fix_Write
 	 LDR R4, [FP, #Index]
@@ -146,20 +147,25 @@ LCD_Fix_Write
 	 STR R4, [FP, #Index]
 	 B LCD_Fix_Write
 LCD_Write_Skip
-	 ; If (4 - Count) - Index > 0 write "0", otherwise write a digit from the stack
-	 MOV R6, #4
+	 ; If (5 - Count) - Index > 0 write "0", otherwise write a digit from the stack
+	 ; If Count == 4, always write a digit
+	 MOV R6, #5
 	 LDR R5, [FP, #Count]
+	 CMP R5, #4
+	 BEQ LCD_Digit
 	 SUB R6, R5
 	 SUB R6, R4
 	 CMP R6, #0
 	 BGT LCD_Empty
+LCD_Digit
 	 POP {R0}
+	 ADD R0, #0x30
 	 BL ST7735_OutChar; Write digit
 	 SUB R5, #1; Decrement count
 	 STR R5, [FP, #Count]
 	 ADD R4, #1; Increment index
 	 STR R4, [FP, #Index]
-	 CMP R4, #4
+	 CMP R4, #5
 	 BLO LCD_Fix_Write
 	 B LCD_Fix_Done
 LCD_Empty
@@ -176,11 +182,13 @@ LCD_Edge
 	 BL ST7735_OutChar
 	 MOV R0, R4
 	 BL ST7735_OutChar
+	 MOV R0, R4
 	 BL ST7735_OutChar
+	 MOV R0, R4
 	 BL ST7735_OutChar	 
 LCD_Fix_Done
-	 POP {R4-R8, LR}; Restore registers
 	 ADD SP, #12; Deallocate local space
+	 POP {R4-R8, LR}; Restore registers
      BX   LR
  
      ALIGN
