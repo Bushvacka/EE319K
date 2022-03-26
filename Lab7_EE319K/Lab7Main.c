@@ -32,9 +32,9 @@
 // CS   - PA3 TFT_CS, active low to enable TFT
 // *CS  - (NC) SDC_CS, active low to enable SDC
 // MISO - (NC) MISO SPI data from SDC to microcontroller
-// SDA  – (NC) I2C data for ADXL345 accelerometer
-// SCL  – (NC) I2C clock for ADXL345 accelerometer
-// SDO  – (NC) I2C alternate address for ADXL345 accelerometer
+// SDA  â€“ (NC) I2C data for ADXL345 accelerometer
+// SCL  â€“ (NC) I2C clock for ADXL345 accelerometer
+// SDO  â€“ (NC) I2C alternate address for ADXL345 accelerometer
 // Backlight + - Light, backlight connected to +3.3 V
 
 // **********wide.hk ST7735R with ADXL335 accelerometer *******************
@@ -48,9 +48,9 @@
 // CS   - PA3 TFT_CS, active low to enable TFT
 // *CS  - (NC) SDC_CS, active low to enable SDC
 // MISO - (NC) MISO SPI data from SDC to microcontroller
-// X– (NC) analog input X-axis from ADXL335 accelerometer
-// Y– (NC) analog input Y-axis from ADXL335 accelerometer
-// Z– (NC) analog input Z-axis from ADXL335 accelerometer
+// Xâ€“ (NC) analog input X-axis from ADXL335 accelerometer
+// Yâ€“ (NC) analog input Y-axis from ADXL335 accelerometer
+// Zâ€“ (NC) analog input Z-axis from ADXL335 accelerometer
 // Backlight + - Light, backlight connected to +3.3 V
 
 // **********HiLetgo ST7735 TFT and SDC (SDC not tested)*******************
@@ -107,9 +107,7 @@ int main(void){
   ST7735_OutString("Lab 7 Spring 2022\n\xADHola!\nBienvenida al EE319K");
 
   IO_Touch();
-  // 2) remove next two lines the above outputs correctly
-  while(1){
-  }
+
 
   ST7735_FillScreen(0xFFFF);   // set screen to white
   ST7735_DrawBitmap(44, 159, Logo, 40, 160);
@@ -121,7 +119,6 @@ int main(void){
     LCD_OutDec(TestData[i]);
     ST7735_SetCursor(11,i);
     LCD_OutFix(TestData[i]);
-    IO_Touch(); // remove this line to see all test cases
   }
   while(1){
   }
