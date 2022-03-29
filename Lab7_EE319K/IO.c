@@ -42,7 +42,7 @@ void IO_Init(void) {
 // Output: none
 void IO_HeartBeat(void) {
 	heartBeat++;
-	if (heartBeat > 733137){ // ~2Hz
+	if (heartBeat > 1466274){ // ~2Hz
 		heartBeat = 0; // Reset counter
 		GPIO_PORTF_DATA_R ^= 0x4; // Toggle PF2
 	}
