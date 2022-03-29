@@ -121,6 +121,7 @@ int main(void){
     LCD_OutFix(TestData[i]);
   }
   while(1){
+		IO_HeartBeat();
   }
 }
 
