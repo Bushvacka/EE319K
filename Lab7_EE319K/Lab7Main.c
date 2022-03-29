@@ -102,7 +102,6 @@ int main(void){
   PLL_Init(Bus80MHz);    // set system clock to 80 MHz
   IO_Init();
   
-  // 1) implement writedata and DrawCharS()
   ST7735_InitR(INITR_REDTAB);
   ST7735_OutString("Lab 7 Spring 2022\n\xADHola!\nBienvenida al EE319K");
 
@@ -120,6 +119,9 @@ int main(void){
     ST7735_SetCursor(11,i);
     LCD_OutFix(TestData[i]);
   }
+	IO_Touch();
+	ST7735_FillScreen(0);
+	ST7735_DrawBitmap(58, 67, Eight, 11, 26);
   while(1){
 		IO_HeartBeat();
   }
