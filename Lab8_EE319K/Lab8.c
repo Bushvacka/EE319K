@@ -1,7 +1,7 @@
 // Lab8.c
 // Runs on TM4C123
 // Student names: Akhil Giridhar  & Troy Dutton
-// Last modification date: 4/10/2022
+// Last modification date: 4/11/2022
 // Last Modified: 1/12/2021 
 
 // Specifications:
@@ -49,132 +49,12 @@ void PortF_Init(void){
   GPIO_PORTF_DEN_R |= 0x0E;
 }
 uint32_t Data;        // 12-bit ADC
-uint32_t Position;    // 32-bit fixed-point 0.001 cm
-int main1(void){      // single step this program and look at Data
-  DisableInterrupts();
-  TExaS_Init(SCOPE);  // Bus clock is 80 MHz 
-  ADC_Init();         // turn on ADC, set channel to 5
-  EnableInterrupts();
-  while(1){                
-    Data = ADC_In();  // sample 12-bit channel 5
-  }
-}
-uint32_t startTime,stopTime;
-uint32_t ADCtime,Converttime,OutDectime,OutFixtime; // in usec
-int main2(void){
-  TExaS_Init(SCOPE);  // Bus clock is 80 MHz 
-  ADC_Init();         // turn on ADC, set channel to 5
-  ST7735_InitR(INITR_REDTAB); 
-  NVIC_ST_RELOAD_R = 0x00FFFFFF; // maximum reload value
-  NVIC_ST_CURRENT_R = 0;    // any write to current clears it
-  NVIC_ST_CTRL_R = 5;
-  while(1){           // use scope to measure execution time for ADC_In and LCD_OutDec           
-    startTime= NVIC_ST_CURRENT_R;
-    Data = ADC_In();  // sample 12-bit channel 5
-    stopTime = NVIC_ST_CURRENT_R;
-    ADCtime = ((startTime-stopTime)&0x0FFFFFF)/80; // usec
-
-    ST7735_SetCursor(0,0);
-    startTime= NVIC_ST_CURRENT_R;
-    LCD_OutDec(Data); 
-    ST7735_OutString("    ");  // spaces cover up characters from last output
-    stopTime = NVIC_ST_CURRENT_R;
-    OutDectime = ((startTime-stopTime)&0x0FFFFFF)/80; // usec
-  }
-}
 
 // your function to convert 12 bit ADC sample to distance (0.001cm)
 // input: x is 12 bit ADC digital sample
 // output: integer part of distance in 0.001 resolution
 uint32_t Convert(uint32_t x){
-  return (2000*x)/4096;
-}  
-
- 
-
-int main3(void){ uint32_t time=0;
-  volatile uint32_t elapsedTime;
-  uint32_t sampleStartTime;
-  TExaS_Init(SCOPE);         // Bus clock is 80 MHz 
-  ST7735_InitR(INITR_REDTAB); 
-  NVIC_ST_RELOAD_R = 0x00FFFFFF; // maximum reload value
-  NVIC_ST_CURRENT_R = 0;    // any write to current clears it
-  NVIC_ST_CTRL_R = 5;
-  PortF_Init();
-  ADC_Init();         // turn on ADC, set channel to 5
-  ST7735_PlotClear(0,2000); 
-  while(1){  // fs = 80,000,000/5,000,000 = 16 Hz
-    sampleStartTime = NVIC_ST_CURRENT_R;
-    PF2 ^= 0x04;      // Heartbeat
-    Data = ADC_In();  // sample 12-bit channel 5
-    startTime= NVIC_ST_CURRENT_R;
-    Position = Convert(Data); 
-    stopTime = NVIC_ST_CURRENT_R;
-    Converttime = ((startTime-stopTime)&0x0FFFFFF)/80; // usec
-
-    ST7735_SetCursor(0,0);
-    LCD_OutDec(Data); ST7735_OutString("    "); 
-    startTime= NVIC_ST_CURRENT_R;
-    ST7735_SetCursor(6,0);
-    LCD_OutFix(Position);
-    stopTime = NVIC_ST_CURRENT_R;
-    OutFixtime = ((startTime-stopTime)&0x0FFFFFF)/80; // usec
-    if((time%8)==0){
-      ST7735_PlotPoint(Position);
-      ST7735_PlotNextErase(); // data ploted at about 2 Hz
-    }
-    time++; // executed about every 62.5 ms
-    do{
-      elapsedTime = (sampleStartTime-NVIC_ST_CURRENT_R)&0x00FFFFFF;
-    }
-    while(elapsedTime <= 5000000);  // establishes approximate sampling rate
-  }
-} 
-
-uint32_t Histogram[64]; // probability mass function
-uint32_t Center;
-// main4 program to study CLT
-int main4(void){ uint32_t i,d,sac; 
-  DisableInterrupts();
-  TExaS_Init(SCOPE);    // Bus clock is 80 MHz 
-  // Connect PF3 to PD3
-  ST7735_InitR(INITR_REDTAB); 
-  ADC_Init();        // turn on ADC, PD2, set channel to 5
-  PortF_Init();
-  EnableInterrupts();
-  sac = 0;
-  while(1){
-    ADC0_SAC_R = sac;
-    PF3 ^= 0x08;       // Heartbeat
-    Center = ADC_In();
-    for(i=0; i<64; i++) Histogram[i] = 0; // clear
-    for(i=0; i<200; i++){
-      for(int j=0; j<1000 ;j++){};
-      Data = ADC_In();
-      PF3 ^= 0x08;       // Heartbeat
-      if(Data<Center-32){
-         Histogram[0]++;
-      }else if(Data>=Center+32){
-         Histogram[63]++;
-      }else{
-        d = Data-Center+32;
-        Histogram[d]++;
-      }
-    }
-    ST7735_PlotClear(0,100);
-    ST7735_SetCursor(0,0);
-    ST7735_OutString("SAC = ");
-    LCD_OutDec(sac);
-    for(i=0; i<63; i++){
-      if(Histogram[i]>99) Histogram[i]=99;
-      ST7735_PlotBar(Histogram[i]);
-      ST7735_PlotNext();
-      ST7735_PlotBar(Histogram[i]);
-      ST7735_PlotNext();
-    }
-    if(sac<6) sac++;
-    else sac = 0;      
-  }
+	return ((1843*x)/4096) + 103;
 }
 
 void SysTick_Init(uint32_t period){
