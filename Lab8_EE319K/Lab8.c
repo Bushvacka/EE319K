@@ -37,9 +37,6 @@ uint32_t ADCStatus;
 void DisableInterrupts(void); // Disable interrupts
 void EnableInterrupts(void);  // Enable interrupts
 
-#define PF1       (*((volatile uint32_t *)0x40025008)) b
-#define PF2       (*((volatile uint32_t *)0x40025010))
-#define PF3       (*((volatile uint32_t *)0x40025020))
 // Initialize Port F so PF1, PF2 and PF3 are heartbeats
 void PortF_Init(void){
   volatile int delay;
@@ -48,7 +45,6 @@ void PortF_Init(void){
   GPIO_PORTF_DIR_R |= 0x0E;
   GPIO_PORTF_DEN_R |= 0x0E;
 }
-uint32_t Data;        // 12-bit ADC
 
 // your function to convert 12 bit ADC sample to distance (0.001cm)
 // input: x is 12 bit ADC digital sample
