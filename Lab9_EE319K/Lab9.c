@@ -113,10 +113,8 @@ int main(void){
 
 
 void SysTick_Handler(void){ // every 100 ms
- //Similar to Lab8 except rather than grab sample and put in mailbox
- //        format message and transmit 
   PF1 ^= 0x02;  // Heartbeat on transmit message
-	uint32_t data = Convert(ADC_In());
+	uint32_t data = Convert(ADC_In()); // Sample ADC
 	// Convert distance to fixed point
 	char msg[9] = {'<', 0, '.', 0, 0, 0, '>', LF, '\0'};
 	char i = 5;
