@@ -5,7 +5,7 @@
 // Student names: Troy Dutton & Akhil Giridhar
 #include <stdint.h>
 
-#define SIZE 6
+#define SIZE 16
 
 void DisableInterrupts(void); // Disable interrupts
 void EnableInterrupts(void);  // Enable interrupts
