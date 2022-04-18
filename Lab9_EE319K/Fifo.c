@@ -1,21 +1,23 @@
 // FiFo.c
 // Runs on LM4F120/TM4C123
 // Provide functions that implement the Software FiFo Buffer
-// Last Modified: 11/11/2021 
-// Student names: Troy Dutton
+// Last Modified: 4/18/2022
+// Student names: Troy Dutton & Akhil Giridhar
 #include <stdint.h>
 
-#define SIZE 17
+#define SIZE 6
 
-static char buffer[SIZE];
-static char get, put;
+void DisableInterrupts(void); // Disable interrupts
+void EnableInterrupts(void);  // Enable interrupts
+
+char buffer[SIZE];
+uint8_t getI, putI, count;
 // *********** FiFo_Init**********
 // Initializes a software FIFO of a
 // fixed size and sets up indexes for
 // put and get operations
 void Fifo_Init() {
-	get = 0;
-	put = 0;
+	getI = putI = count = 0;
 }
 
 // *********** FiFo_Put**********
@@ -24,12 +26,15 @@ void Fifo_Init() {
 // Output: 1 for success and 0 for failure
 //         failure is when the buffer is full
 uint32_t Fifo_Put(char data){
-	if ((put + 1) % SIZE != get) {
-		buffer[put] = data;
-		put = (put + 1) % SIZE;
-		return 1; // Success
-	} else {
+	if (count == SIZE) {
 		return 0; // Failure - buffer full
+	} else {
+		buffer[putI] = data;
+		putI = (putI + 1) % SIZE;
+		DisableInterrupts();
+		count++;
+		EnableInterrupts();
+		return 1; // Success
 	}
 }
 
@@ -39,17 +44,19 @@ uint32_t Fifo_Put(char data){
 // Output: 1 for success and 0 for failure
 //         failure is when the buffer is empty
 uint32_t Fifo_Get(char *datapt){
-	if (get != put) {
-		*datapt = buffer[get];
-		get = (get + 1) % SIZE;
-		return 1; // Success
-	} else {
+	if (count == 0) {
 		return 0; // Failure - buffer empty
+	} else {
+		*datapt = buffer[getI];
+		getI = (getI + 1) % SIZE;
+		DisableInterrupts();
+		count--;
+		EnableInterrupts();
+		return 1; // Success
 	}
 }
 
 	
-
 
 
 
