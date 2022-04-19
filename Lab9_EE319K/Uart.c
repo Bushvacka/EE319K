@@ -18,6 +18,7 @@
 // Receive interrupts and FIFOs are used on PC4
 // Transmit busy-wait is used on PC5.
 void UART_Init(void){
+	Fifo_Init();
 	volatile uint32_t delay;
 	SYSCTL_RCGCUART_R |= 0x2; // activate UART1
   SYSCTL_RCGCGPIO_R |= 0x4; // activate port C
@@ -27,8 +28,9 @@ void UART_Init(void){
   UART1_FBRD_R = 0; // FBRD = 0
 	UART1_IM_R |= 0x10;
 	UART1_IFLS_R |= 0x10;
-	NVIC_PRI1_R |= 0xE00000; // TODO: Is priority 7 ok?
-	NVIC_EN0_R |= 0x40; // TODO: Is this interrupt 6?
+	UART1_IFLS_R &= ~(0x28);
+	NVIC_PRI1_R |= 0xE00000; // Priority 7
+	NVIC_EN0_R |= 0x40; // Enable interrupt 6
   UART1_LCRH_R = 0x0070;  // 8-bit length, enable FIFO
   UART1_CTL_R = 0x0301;   // enable RXE, TXE and UART
   GPIO_PORTC_AFSEL_R |= 0x30; // alt funct on PC4-5
