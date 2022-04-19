@@ -1,7 +1,7 @@
 // Lab9.c
 // Runs on TM4C123
 // Student names: Troy Dutton
-// Last modification date: 4/18/2022
+// Last modification date: 4/19/2022
 
 // Analog Input connected to PD2=ADC5
 // displays on Sitronox ST7735
@@ -38,6 +38,7 @@ void LogicAnalyzerTask(void){
 void DisableInterrupts(void); // Disable interrupts
 void EnableInterrupts(void);  // Enable interrupts
 int mainfifo(void); // FIFO test
+int maintx(void); // Transmitter test
 uint32_t Convert(uint32_t);
 #define STX 0x02
 #define ETX 0x03
@@ -48,7 +49,6 @@ uint32_t Convert(uint32_t);
 #define PF3       (*((volatile uint32_t *)0x40025020))
 uint32_t Data;      // 12-bit ADC
 uint32_t Position;  // 32-bit fixed-point 0.001 cm
-int32_t TxCounter = 0;
 
 
 // Initialize Port F so PF1, PF2 and PF3 are heartbeats
@@ -80,7 +80,7 @@ uint32_t Convert(uint32_t x){
 	return ((1843*x)/4096) + 103;
 }
 
- 
+
 // final main program for bidirectional communication
 // Sender sends using SysTick Interrupt, Tx uses busy-wait
 // Receiver receives using RX interrrupts
@@ -94,13 +94,13 @@ int main(void){
   UART_Init();
   SysTick_Init(80000000/10); // Interrupt at 10Hz
   EnableInterrupts();
-  ST7735_PlotClear(0,2000); // 0 to 200, 0.01cm
 	char data = 0;
 	char *datapt = &data;
   while(1){ // one time through the loop every 100 ms
 		if (Fifo_Get(datapt) && data == 0x3C) {
 			PF3 ^= 0x08; // Heartbeat when message received
 			ST7735_SetCursor(0, 0);
+			ST7735_OutString("Lab 9, d=");
 			while (Fifo_Get(datapt)) {
 				if (data != '>' && data != LF) {
 					ST7735_OutChar(data);
@@ -128,7 +128,7 @@ void SysTick_Handler(void){ // every 100 ms
 		}
 	}	
 	UART_OutString(msg); // Transmit
-	TxCounter++;
+	
 }
 
 
@@ -160,3 +160,13 @@ int mainfifo(void){ // Make this main to test Fifo
   }
 }
 
+int maintx(void) {
+  DisableInterrupts();
+	TExaS_Init(&LogicAnalyzerTask); // real board
+  ADC_Init();
+  PortF_Init();
+  UART_Init();
+  SysTick_Init(80000000/10); // Interrupt at 10Hz
+  EnableInterrupts();
+	while (1) {}
+}
