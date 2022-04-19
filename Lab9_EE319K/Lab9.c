@@ -1,8 +1,7 @@
 // Lab9.c
 // Runs on TM4C123
 // Student names: Troy Dutton
-// Last modification date: 4/14/2022
-// Last Modified: 1/12/2022 
+// Last modification date: 4/18/2022
 
 // Analog Input connected to PD2=ADC5
 // displays on Sitronox ST7735
@@ -81,7 +80,7 @@ uint32_t Convert(uint32_t x){
 	return ((1843*x)/4096) + 103;
 }
 
-
+ 
 // final main program for bidirectional communication
 // Sender sends using SysTick Interrupt, Tx uses busy-wait
 // Receiver receives using RX interrrupts
@@ -99,13 +98,15 @@ int main(void){
 	char data = 0;
 	char *datapt = &data;
   while(1){ // one time through the loop every 100 ms
-		if (Fifo_Get(datapt)) {
-			ST7735_SetCursor(0, 0);
+		if (Fifo_Get(datapt) && data == 0x3C) {
 			PF3 ^= 0x08; // Heartbeat when message received
-			ST7735_OutChar(*datapt);
- 			while (Fifo_Get(datapt)) {
-				ST7735_OutChar(*datapt);
+			ST7735_SetCursor(0, 0);
+			while (Fifo_Get(datapt)) {
+				if (data != '>' && data != LF) {
+					ST7735_OutChar(data);
+				}
 			}
+			ST7735_OutString(" cm");
 		}
   }
 }
