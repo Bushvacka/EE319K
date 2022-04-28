@@ -199,15 +199,18 @@ void drawShips(void) {
 	}
 }
 uint8_t gameDone(void) {
-	uint8_t hit_counter = 0;
-	for (int i = 0; i < NUM_SHIPS; i++) {
-		for (int j = 0; j < ships[i].length; j++) {
-			if (ships[i].hit[j]) {
+	uint8_t hit_counter = 0, enemy_hit_counter = 0;
+	for (int i = 0; i < GRID_SIZE; i++) {
+		for (int j = 0; j < GRID_SIZE; j++) {
+			if (markerGrid[i][j]) {
 				hit_counter++;
+			}
+			if (selfMarkerGrid[i][j]) {
+				enemy_hit_counter++;
 			}
 		}
 	}
-	if (hit_counter >= 9) {
+	if (hit_counter >= 9 || enemy_hit_counter >= 9) {
 		return 1;
 	} else {
 		return 0;
@@ -427,11 +430,12 @@ int main(void){
 	placeShips();
 	waitForSync();
 	// Game Begins
-	uint8_t completed = 0, player = Tx, hit;
+	uint8_t player = Tx;
 	char data = 0;
 	char *datapt = &data;
-	while (!completed) {
+	while (!gameDone()) {
 			if (player) {
+				uint8_t hit;
 				do {
 					// Display marker grid
 					ST7735_FillScreen(ST7735_BLACK);
@@ -449,7 +453,7 @@ int main(void){
 					// Await response
 					data = 0;
 					while (Fifo_Get(datapt) == 0 || (data != 'H' && data != 'M')){}
-					uint8_t hit = data == 'H' ? 1 : 0;
+					hit = data == 'H' ? 1 : 0;
 					// Clear FIFO
 					while (data != '>') {
 						Fifo_Get(datapt);
@@ -463,13 +467,14 @@ int main(void){
 						drawMarker(shot.x, shot.y, ST7735_WHITE);
 					}
 					// Draw marker
-				} while (hit && !completed);
+				} while (hit && !gameDone());
 				player = (player + 1) % 2;
 			} else {
+					uint8_t hit;
 					ST7735_FillScreen(ST7735_BLACK);
 					drawGrid();
-					drawMarkers(selfMarkerGrid);
 					drawShips();
+					drawMarkers(selfMarkerGrid);
 					do {
 						// Await shot position
 						data = 0;
@@ -493,10 +498,9 @@ int main(void){
 							drawMarker(x, y, ST7735_WHITE);
 							UART_OutString("M..>");
 						}
-					} while (hit && !completed);
+					} while (hit && !gameDone());
 					player = (player + 1) % 2;
 			}
-			completed = gameDone();
 	}		
 	
 	ST7735_FillScreen(ST7735_BLACK);
