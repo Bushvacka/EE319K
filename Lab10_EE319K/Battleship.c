@@ -52,6 +52,7 @@ int PLL_Init(void);
 #define COL_SEA ST7735_Color565(65,105,225)
 #define COL_MARKER ST7735_Color565(255,69,0)
 #define COL_SHIP ST7735_Color565(255,215,0)
+#define NUM_SHIPS 3
 
 // Grid points
 struct Point {
@@ -143,8 +144,11 @@ void waitForSync(void) {
 	ST7735_OutString((char *)Phrases[Wait][language]);
 	char data = 0;
 	char *datapt = &data;
-	UART_OutChar('R');
+	for (int i = 0; i < 8; i++) {
+		UART_OutChar('R');
+	}
 	while(data != 'R') {Fifo_Get(datapt);} // Wait for ready signal 
+	Fifo_Clear();
 	button1 = 0; // Ack
 }
 // Draw Battleship sea and gridlines.
@@ -170,7 +174,7 @@ void fillSquare(uint8_t x, uint8_t y, uint16_t color) {
 }
 // Draw a shot marker to indicate a hit or miss
 void drawMarker(uint8_t x, uint8_t y, uint16_t color) {
-	ST7735_DrawCircle(18*x + 9, 18*y + 9, color);
+	ST7735_DrawCircle(18*x + 5, 18*y + 5, color);
 }
 // Draw the players view of the enemy 
 void drawMarkers(void) {
@@ -182,6 +186,29 @@ void drawMarkers(void) {
 				drawMarker(j, i, ST7735_RED);
 			}
 		}
+	}
+}
+// Draws all ships to the screen
+void drawShips(void) {
+	for (int i = 0; i < NUM_SHIPS; i++) {
+		for (int j = 0; j < ships[i].length; j++) {
+			fillSquare(ships[i].squares[j].x, ships[i].squares[j].y, COL_SHIP);
+		}
+	}
+}
+uint8_t gameDone(void) {
+	uint8_t hit_counter;
+	for (int i = 0; i < NUM_SHIPS; i++) {
+		for (int j = 0; j < ships[i].length; j++) {
+			if (ships[i].hit[j]) {
+				hit_counter++;
+			}
+		}
+	}
+	if (hit_counter >= 9) {
+		return 1;
+	} else {
+		return 0;
 	}
 }
 // Returns true if the ship overlaps with another ship already on the grid
@@ -283,6 +310,7 @@ void placeShips(void) {
 					dir = (dir + 1) % 2;
 				}
 			}
+				
 			if (ADC_Flag) {
 				ADC_Flag = 0;
 				newPos = Convert(ADC_Data);
@@ -314,16 +342,17 @@ void placeShips(void) {
 					}
 				}
 				y = newPos;
-				
-				if (button1 == 1 && y != 7) {
-					if (shipOverlap(ship)) {
-						button1 = 0; // Ignore
-					} else {
-						nextAxis = 1;
-					}
+			}
+			
+			// Check if ship placement is done
+			if (button1 == 1 && y != 7) {
+				if (shipOverlap(ship)) {
+					button1 = 0; // Ignore
 				} else {
-					nextAxis = 0;
+					nextAxis = 1;
 				}
+			} else {
+				nextAxis = 0;
 			}
 		}
 		button1 = 0; // ACk
@@ -409,11 +438,18 @@ int main(void){
 					// Get shot selection
 					Point_t shot = selectGrid();
 					// Send fire command
-					char shot_msg[] = {'F', (char)shot.x, (char)shot.y};
-					UART_OutString(shot_msg);
+					UART_OutChar('F');
+					char msg = shot.x + 0x30;
+					UART_OutChar(msg);
+					msg = shot.y + 0x30;
+					UART_OutChar(msg);
+					for (int i = 0; i < 5;  i++) {
+						UART_OutChar(' ');
+					}
 					// Await response
 					data = 0;
 					while (Fifo_Get(datapt) == 0 || (data != 'H' && data != 'M')){}
+					Fifo_Clear();
 					// Draw marker
 					if (data == 'H') {
 						markerGrid[shot.y][shot.x] = 1;
@@ -423,24 +459,37 @@ int main(void){
 						drawMarker(shot.x, shot.y, ST7735_WHITE);
 					}
 				} while (data == 'H' && !completed);
+				player = (player + 1) % 2;
 			} else {
+					drawGrid();
+					drawShips();
 					do {
 						// Await shot position
 						data = 0;
 						while (Fifo_Get(datapt) == 0 || data != 'F') {}
 						Fifo_Get(datapt);
-						uint8_t x = data;
+						uint8_t x = data - 0x30;
 						Fifo_Get(datapt);
-						uint8_t y = data;
+						uint8_t y = data - 0x30;
+						drawMarker(x, y, COL_MARKER);
+						Fifo_Clear();
 						hit = grid[y][x] == 0 ? 0:1;
 						if (hit) {
-							ST7735_OutChar('H');
+							for (int i = 0; i < 8; i++) {
+								UART_OutChar('H');
+							}
 						} else {
-							ST7735_OutChar('M');
+							for (int i = 0; i < 8; i++) {
+								UART_OutChar('M');
+							}
 						}
 					} while (hit && !completed);
-					
-					
+					player = (player + 1) % 2;
 			}
+			completed = gameDone();
 	}		
+	
+	ST7735_FillScreen(ST7735_BLACK);
+	ST7735_SetCursor(0, 0);
+	ST7735_OutString("YOU WON");
 }
