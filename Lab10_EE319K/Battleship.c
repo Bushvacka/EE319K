@@ -144,11 +144,12 @@ void waitForSync(void) {
 	ST7735_OutString((char *)Phrases[Wait][language]);
 	char data = 0;
 	char *datapt = &data;
-	for (int i = 0; i < 8; i++) {
-		UART_OutChar('R');
-	}
+	UART_OutString("R..>");
 	while(data != 'R') {Fifo_Get(datapt);} // Wait for ready signal 
-	Fifo_Clear();
+	// Clear FIFO
+	while (data != '>') {
+		Fifo_Get(datapt);
+	}
 	button1 = 0; // Ack
 }
 // Draw Battleship sea and gridlines.
@@ -443,15 +444,10 @@ int main(void){
 					UART_OutChar(msg);
 					msg = shot.y + 0x30;
 					UART_OutChar(msg);
-					for (int i = 0; i < 5;  i++) {
-						UART_OutChar(' ');
-					}
+					UART_OutChar('>');
 					// Await response
 					data = 0;
 					while (Fifo_Get(datapt) == 0 || (data != 'H' && data != 'M')){}
-					Fifo_Get(datapt);
-					Fifo_Clear();
-					// Draw marker
 					if (data == 'H') {
 						markerGrid[shot.y][shot.x] = 1;
 						drawMarker(shot.x, shot.y, ST7735_RED);
@@ -459,6 +455,11 @@ int main(void){
 						markerGrid[shot.y][shot.x] = 2;
 						drawMarker(shot.x, shot.y, ST7735_WHITE);
 					}
+					// Clear FIFO
+					while (data != '>') {
+						Fifo_Get(datapt);
+					}
+					// Draw marker
 				} while (data == 'H' && !completed);
 				player = (player + 1) % 2;
 			} else {
@@ -474,20 +475,20 @@ int main(void){
 						uint8_t x = data - 0x30;
 						Fifo_Get(datapt);
 						uint8_t y = data - 0x30;
-						Fifo_Clear();
+						// Clear FIFO
+						while (data != '>') {
+							Fifo_Get(datapt);
+						}
 						hit = grid[y][x] == 0 ? 0:1;
+						
 						if (hit) {
 							selfMarkerGrid[y][x] = 1;
 							drawMarker(x, y, ST7735_RED);
-							for (int i = 0; i < 8; i++) {
-								UART_OutChar('H');
-							}
+							UART_OutString("H..>");
 						} else {
 							selfMarkerGrid[y][x] = 2;
 							drawMarker(x, y, ST7735_WHITE);
-							for (int i = 0; i < 8; i++) {
-								UART_OutChar('M');
-							}
+							UART_OutString("M..>");
 						}
 					} while (hit && !completed);
 					player = (player + 1) % 2;
