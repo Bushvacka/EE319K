@@ -144,12 +144,13 @@ void waitForSync(void) {
 	ST7735_OutString((char *)Phrases[Wait][language]);
 	char data = 0;
 	char *datapt = &data;
-	UART_OutString("R..>");
-	while(data != 'R') {Fifo_Get(datapt);} // Wait for ready signal 
+	UART_OutString("R>>>");
+	while (data != 'R') {Fifo_Get(datapt);} // Wait for ready signal 
 	// Clear FIFO
-	while (data != '>') {
-		Fifo_Get(datapt);
-	}
+	uint8_t success;
+	do {
+		success = Fifo_Get(datapt);
+	} while (data == '>' && success);
 	button1 = 0; // Ack
 }
 // Draw Battleship sea and gridlines.
@@ -448,19 +449,21 @@ int main(void){
 					// Await response
 					data = 0;
 					while (Fifo_Get(datapt) == 0 || (data != 'H' && data != 'M')){}
-					if (data == 'H') {
+					uint8_t hit = data == 'H' ? 1 : 0;
+					// Clear FIFO
+					while (data != '>') {
+						Fifo_Get(datapt);
+					}
+					// 
+					if (hit) {
 						markerGrid[shot.y][shot.x] = 1;
 						drawMarker(shot.x, shot.y, ST7735_RED);
 					} else {
 						markerGrid[shot.y][shot.x] = 2;
 						drawMarker(shot.x, shot.y, ST7735_WHITE);
 					}
-					// Clear FIFO
-					while (data != '>') {
-						Fifo_Get(datapt);
-					}
 					// Draw marker
-				} while (data == 'H' && !completed);
+				} while (hit && !completed);
 				player = (player + 1) % 2;
 			} else {
 					ST7735_FillScreen(ST7735_BLACK);
