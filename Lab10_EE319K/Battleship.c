@@ -170,9 +170,21 @@ void fillSquare(uint8_t x, uint8_t y, uint16_t color) {
 }
 // Draw a shot marker to indicate a hit or miss
 void drawMarker(uint8_t x, uint8_t y, uint16_t color) {
-// Returns true if the ship overlaps with another ship already on the grid
 	ST7735_DrawCircle(18*x + 9, 18*y + 9, color);
 }
+// Draw the players view of the enemy 
+void drawMarkers(void) {
+	for (int i = 0; i < GRID_SIZE; i++) {
+		for (int j = 0; j < GRID_SIZE; j++) {
+			if (markerGrid[i][j] == 1) {
+				drawMarker(j, i, ST7735_RED);
+			} else if (markerGrid[i][j] == 2) {
+				drawMarker(j, i, ST7735_RED);
+			}
+		}
+	}
+}
+// Returns true if the ship overlaps with another ship already on the grid
 uint8_t shipOverlap(Ship_t ship) {
 	for (int i = 0; i < ship.length; i++) {
 		uint8_t x = ship.squares[i].x;
@@ -390,6 +402,10 @@ int main(void){
 	while (!completed) {
 			if (player) {
 				do {
+					// Display marker grid
+					ST7735_FillScreen(ST7735_BLACK);
+					drawGrid();
+					drawMarkers();
 					// Get shot selection
 					Point_t shot = selectGrid();
 					// Send fire command
@@ -400,8 +416,10 @@ int main(void){
 					while (Fifo_Get(datapt) == 0 || (data != 'H' && data != 'M')){}
 					// Draw marker
 					if (data == 'H') {
+						markerGrid[shot.y][shot.x] = 1;
 						drawMarker(shot.x, shot.y, ST7735_RED);
 					} else {
+						markerGrid[shot.y][shot.x] = 2;
 						drawMarker(shot.x, shot.y, ST7735_WHITE);
 					}
 				} while (data == 'H' && !completed);
@@ -421,6 +439,8 @@ int main(void){
 							ST7735_OutChar('M');
 						}
 					} while (hit && !completed);
+					
+					
 			}
 	}		
 }
