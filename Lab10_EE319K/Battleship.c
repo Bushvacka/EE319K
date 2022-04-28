@@ -45,13 +45,13 @@ int PLL_Init(void);
 // Master/Slave
 #define Tx 1
 // ISR Constants
-#define PORTE_PRIO 4
 #define SYSTICK_PRIO 3
 #define TIMER1_PRIO 2
 // Game Constants
 #define GRID_SIZE 7
 #define COL_SEA ST7735_Color565(65,105,225)
 #define COL_MARKER ST7735_Color565(255,69,0)
+#define COL_SHIP ST7735_Color565(255,215,0)
 
 // Grid points
 struct Point {
@@ -85,9 +85,10 @@ const char *Phrases[3][2]={
 };
 
 // Globals
-uint8_t display = 0, button1 = 0, button2 = 0;
 uint8_t grid[GRID_SIZE][GRID_SIZE], markerGrid[GRID_SIZE][GRID_SIZE];
 Ship_t ships[3];
+uint32_t ADC_Data;
+uint8_t ADC_Flag = 0;
 
 // Delay for 100ms count times
 void Delay100ms(uint32_t count){uint32_t volatile time;
@@ -109,41 +110,26 @@ void PortF_Init(void){
 }
 
 // Initialize PortE for edge-triggered buttons
-void PortE_Init(uint32_t priority){
+void PortE_Init(void){
 	volatile uint32_t delay;
   SYSCTL_RCGCGPIO_R |= 0x10; // Port E
 	delay = SYSCTL_RCGCGPIO_R;
   GPIO_PORTE_DIR_R &= ~0xE; // Input
   GPIO_PORTE_DEN_R |= 0xE;  // Digital enable
-  GPIO_PORTE_IS_R &= ~0xE;  // Edge-sensitive
+  /*GPIO_PORTE_IS_R &= ~0xE;  // Edge-sensitive
   GPIO_PORTE_IBE_R &= ~0xE; // Not both edges
   GPIO_PORTE_IEV_R |= 0xE;  // Rising edge trigger
   GPIO_PORTE_ICR_R = 0xE;   // Clear flag
   GPIO_PORTE_IM_R |= 0xE;   // Eanble interrupt
   NVIC_PRI11_R = (NVIC_PRI11_R&0xFFFFFF1F) | (priority << 5); // Priority 3
   NVIC_EN0_R = 0x10;   			 // Enable IRQ 4
+	*/
 }
-
-// Handle button presses
-void GPIOPortE_Handler(void){
-  GPIO_PORTE_ICR_R = 0xE; // Ack
-	uint32_t data = GPIO_PORTE_DATA_R;
-	if ((data & 0x8) == 0x8) {button1 = 1;} 		 // Button 1 - Fire/Lock in/Ready up
-	else if ((data & 0x4) == 0x4) {button2 = 1;} // Button 2 - Rotate ship
-	else { 																			 // Button 3 - Language Change
-		if (language == English) {language = Spanish;} 
-		else {language = English;}
-	}
-}
-
-// Flash messages during the title sequence
+// Sample ADC
 void Timer1A_Handler(void){
-  TIMER1_ICR_R = TIMER_ICR_TATOCINT; // Ack
-	if (display) {
-		display = 0;
-	} else {
-		display = 1;
-	}
+	ADC_Data = ADC_In();
+	ADC_Flag = 1;
+	TIMER1_ICR_R = TIMER_ICR_TATOCINT; // Ack
 }
 
 // Convert ADC input to a grid position
@@ -152,21 +138,14 @@ uint32_t Convert(uint32_t data){
 }
 // Wait for the other board
 void waitForSync(void) {
-	TIMER1_CTL_R = 0x1; // Enable Blinking
+	ST7735_FillScreen(ST7735_BLACK);
+	ST7735_SetCursor(0, 0);
+	ST7735_OutString((char *)Phrases[Wait][language]);
 	char data = 0;
 	char *datapt = &data;
 	UART_OutChar('R');
-	while(data != 'R') { // Wait for ready signal
-		Fifo_Get(datapt); 
-		ST7735_SetCursor(0, 0);
-		if (display) {
-			ST7735_OutString((char *)Phrases[Wait][language]);
-		} else {
-			ST7735_OutString("                        ");
-		}
-	}
+	while(data != 'R') {Fifo_Get(datapt);} // Wait for ready signal 
 	button1 = 0; // Ack
-	TIMER1_CTL_R = 0x0; // Disable Blinking
 }
 // Draw Battleship sea and gridlines.
 void drawGrid(void) {
@@ -191,23 +170,28 @@ void fillSquare(uint8_t x, uint8_t y, uint16_t color) {
 }
 // Draw a shot marker to indicate a hit or miss
 void drawMarker(uint8_t x, uint8_t y, uint16_t color) {
+// Returns true if the ship overlaps with another ship already on the grid
 	ST7735_DrawCircle(18*x + 9, 18*y + 9, color);
+}
+uint8_t shipOverlap(Ship_t ship) {
+	for (int i = 0; i < ship.length; i++) {
+		uint8_t x = ship.squares[i].x;
+		uint8_t y = ship.squares[i].y;
+		if (grid[y][x]) {
+			return 1; // Overlap
+		}
+	}
+	return 0; // No overlap
 }
 // Display the title sequence.
 void titleScreen(void) {
 	ST7735_FillScreen(ST7735_BLACK);
-	ST7735_DrawBitmap(13, 119, title, 39, 79);
-	while(button1 == 0) { // Wait for button press
-			ST7735_SetCursor(0, 0);
-			if (display) {
-				ST7735_OutString((char *)Phrases[0][language]);
-			} else {
-				ST7735_OutString("                 ");
-			}
-	}
+	ST7735_DrawBitmap(38, 65, title, 79, 39);
+	ST7735_SetCursor(7, 7);
+	ST7735_OutString((char *)Phrases[0][language]);
+	while(button1 == 0) {} // Wait for button press
 	button1 = 0; // Ack
 	ST7735_FillScreen(ST7735_BLACK); // Clear Screen
-	TIMER1_CTL_R = 0x0; // Disable Timer1
 }
 
 // Place ships on the grid
@@ -232,12 +216,21 @@ void placeShips(void) {
 		// Select x position
 		while (button1 == 0 || x == 7) {
 			if (button2) {
-				dir = (dir + 1) % 2;
+				if (dir && x == GRID_SIZE - 1) { // Vertical and at right edge
+					button2 = 0; // Ignore
+				} else {
+					dir = (dir + 1) % 2;
+				}
 			}
 			
 			if (ADC_Flag) {
 				ADC_Flag = 0;
 				newPos = Convert(ADC_Data);
+				
+				// Check bounds
+				if (dir == 0 && newPos + length - 1 >= GRID_SIZE) { // Horizontal
+					continue;
+				}
 				
 				// Clean up old position
 				if ((newPos != x && x != 7) || button2) {
@@ -245,65 +238,88 @@ void placeShips(void) {
 						button2 = 0; // Ack
 					}
 					for (int i = 0; i < ship.length; i++) {
-						fillSquare(ship.squares[i].x, ship.squares[i].y, COL_SEA);
+						fillSquare(ship.squares[i].x, ship.squares[i].y, grid[ship.squares[i].y][ship.squares[i].x] ? COL_SHIP : COL_SEA);
 					}
 				}
 				if (dir) { // Vertical
 					for (int i = 0; i < length; i++) {
 						ship.squares[i].x = newPos;
 						ship.squares[i].y = i;
-						fillSquare(ship.squares[i].x, ship.squares[i].y, COL_MARKER);
+						fillSquare(ship.squares[i].x, ship.squares[i].y, COL_SHIP);
 					}
 				} else { // Horizontal
 					for (int i = 0; i < length; i++) {
 						ship.squares[i].x = newPos + i;
 						ship.squares[i].y = 0;
-						fillSquare(ship.squares[i].x, ship.squares[i].y, COL_MARKER);
+						fillSquare(ship.squares[i].x, ship.squares[i].y, COL_SHIP);
 					}
 				}
 				
 				x = newPos;		
 			}
 		}
-		
 		button1 = 0; // Ack
-		while (button1 == 0 || y == 7) {
+		uint8_t nextAxis = 0; // Ready to place?
+		while (!nextAxis) {
 			if (button2) {
-				dir = (dir + 1) % 2;
+				if (dir == 0 && y == GRID_SIZE - 1) { // Horizontal and at bottom edge
+					button2 = 0; // Ignore
+				} else if(dir && x == GRID_SIZE - 1) {
+					button2 = 0;
+				}
+				else {
+					dir = (dir + 1) % 2;
+				}
 			}
-			
 			if (ADC_Flag) {
 				ADC_Flag = 0;
 				newPos = Convert(ADC_Data);
 				
+				// Check bounds
+				if (dir && newPos + length - 1 >= GRID_SIZE) { // Horizontal
+					continue;
+				}
 				// Clean up old position
-				if ((newPos != y && y != 7) || button2) {
+				if ((newPos != y) || button2) {
 					if (button2) {
 						button2 = 0; // Ack
 					}
 					for (int i = 0; i < ship.length; i++) {
-						fillSquare(ship.squares[i].x, ship.squares[i].y, COL_SEA);
+						fillSquare(ship.squares[i].x, ship.squares[i].y, grid[ship.squares[i].y][ship.squares[i].x] ? COL_SHIP : COL_SEA);
 					}
 				}
 				if (dir) { // Vertical
 					for (int i = 0; i < length; i++) {
 						ship.squares[i].x = x;
 						ship.squares[i].y = newPos + i;
-						fillSquare(ship.squares[i].x, ship.squares[i].y, COL_MARKER);
+						fillSquare(ship.squares[i].x, ship.squares[i].y, COL_SHIP);
 					}
 				} else { // Horizontal
 					for (int i = 0; i < length; i++) {
-						ship.squares[i].x = x;
-						ship.squares[i].y = newPos + i;
-						fillSquare(ship.squares[i].x, ship.squares[i].y, COL_MARKER);
+						ship.squares[i].x = x + i;
+						ship.squares[i].y = newPos;
+						fillSquare(ship.squares[i].x, ship.squares[i].y, COL_SHIP);
 					}
 				}
+				y = newPos;
 				
-				y = newPos;		
+				if (button1 == 1 && y != 7) {
+					if (shipOverlap(ship)) {
+						button1 = 0; // Ignore
+					} else {
+						nextAxis = 1;
+					}
+				} else {
+					nextAxis = 0;
+				}
 			}
-		};
+		}
+		button1 = 0; // ACk
 		
 		// Save ship
+		for (int i = 0; i < ship.length; i++) {
+			grid[ship.squares[i].y][ship.squares[i].x] = 1;
+		}
 		ships[length - 2] = ship;
 	}
 }
@@ -315,6 +331,7 @@ Point_t selectGrid(void) {
 		if (ADC_Flag) {
 			ADC_Flag = 0;
 			newMarker = Convert(ADC_Data);
+			// Clean up old crosshair
 			if (newMarker != markerX && markerX != 7) {
 				drawCrosshair(markerX, 0, ST7735_WHITE);
 			}
@@ -347,16 +364,16 @@ int main(void){
   DisableInterrupts();
 	//PLL_Init();
   TExaS_Init(NONE); // Bus clock is 80 MHz 
-	PortE_Init(PORTE_PRIO);
+	PortE_Init();
 	PortF_Init();
   ST7735_InitR(INITR_REDTAB);
 	ST7735_SetRotation(3);
-	Timer1_Init(80000000/2, TIMER1_PRIO);
 	ADC_Init();
 	Fifo_Init();
 	UART_Init();
 	Sound_Init();
-	SysTick_Init(80000000/30, SYSTICK_PRIO);
+	Timer1_Init(80000000/30, TIMER1_PRIO);
+	SysTick_Init(80000000/5, SYSTICK_PRIO);
 	Random_Init(NVIC_ST_CURRENT_R);
 	EnableInterrupts();
 	
