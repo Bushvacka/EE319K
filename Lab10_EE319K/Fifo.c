@@ -5,7 +5,7 @@
 // Student names: Troy Dutton & Akhil Giridhar
 #include <stdint.h>
 
-#define SIZE 8
+#define SIZE 5
 
 void DisableInterrupts(void); // Disable interrupts
 void EnableInterrupts(void);  // Enable interrupts
@@ -26,14 +26,14 @@ void Fifo_Init() {
 // Output: 1 for success and 0 for failure
 //         failure is when the buffer is full
 uint32_t Fifo_Put(char data){
-	if (count == SIZE) {
+	if (getI == putI) {
 		return 0; // Failure - buffer full
 	} else {
 		buffer[putI] = data;
 		putI = (putI + 1) % SIZE;
-		DisableInterrupts();
-		count++;
-		EnableInterrupts();
+		//DisableInterrupts();
+		//count++;
+		//EnableInterrupts();
 		return 1; // Success
 	}
 }
@@ -44,18 +44,19 @@ uint32_t Fifo_Put(char data){
 // Output: 1 for success and 0 for failure
 //         failure is when the buffer is empty
 uint32_t Fifo_Get(char *datapt){
-	if (count == 0) {
+	if ((putI+1) % SIZE == getI) {
 		return 0; // Failure - buffer empty
 	} else {
 		*datapt = buffer[getI];
 		getI = (getI + 1) % SIZE;
-		DisableInterrupts();
-		count--;
-		EnableInterrupts();
+		//DisableInterrupts();
+		//count--;
+		//EnableInterrupts();
 		return 1; // Success
 	}
 }
 
 	
-
-
+void Fifo_Clear(void) {
+	getI = putI = count = 0;
+}
