@@ -9,13 +9,13 @@
 #define __systick_h
 #include <stdint.h>
 
-extern uint32_t ADC_Data;
-extern uint8_t ADC_Flag;
-
-// Initialize SysTick for sampling the ADC
+extern uint8_t button1;
+extern uint8_t button2;
+extern uint32_t previous_data;
+// Initialize SysTick for sampling PortE
 void SysTick_Init(uint32_t period, uint32_t priority);
 
-// Sample the ADC and alert the main program
+// Sample PortE and alert the main program
 void SysTick_Handler(void);
 
 #endif
