@@ -1,4 +1,4 @@
-// SpaceInvaders.c
+// Battleship.c
 // Runs on TM4C123
 // Jonathan Valvano and Daniel Valvano
 // This is a starter project for the EE319K Lab 10
@@ -183,7 +183,7 @@ void drawMarkers(void) {
 			if (markerGrid[i][j] == 1) {
 				drawMarker(j, i, ST7735_RED);
 			} else if (markerGrid[i][j] == 2) {
-				drawMarker(j, i, ST7735_RED);
+				drawMarker(j, i, ST7735_WHITE);
 			}
 		}
 	}
@@ -197,7 +197,7 @@ void drawShips(void) {
 	}
 }
 uint8_t gameDone(void) {
-	uint8_t hit_counter;
+	uint8_t hit_counter = 0;
 	for (int i = 0; i < NUM_SHIPS; i++) {
 		for (int j = 0; j < ships[i].length; j++) {
 			if (ships[i].hit[j]) {
@@ -461,6 +461,7 @@ int main(void){
 				} while (data == 'H' && !completed);
 				player = (player + 1) % 2;
 			} else {
+					ST7735_FillScreen(ST7735_BLACK);
 					drawGrid();
 					drawShips();
 					do {
@@ -471,14 +472,15 @@ int main(void){
 						uint8_t x = data - 0x30;
 						Fifo_Get(datapt);
 						uint8_t y = data - 0x30;
-						drawMarker(x, y, COL_MARKER);
 						Fifo_Clear();
 						hit = grid[y][x] == 0 ? 0:1;
 						if (hit) {
+							drawMarker(x, y, ST7735_RED);
 							for (int i = 0; i < 8; i++) {
 								UART_OutChar('H');
 							}
 						} else {
+							drawMarker(x, y, ST7735_WHITE);
 							for (int i = 0; i < 8; i++) {
 								UART_OutChar('M');
 							}
