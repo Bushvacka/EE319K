@@ -86,7 +86,7 @@ const char *Phrases[3][2]={
 };
 
 // Globals
-uint8_t grid[GRID_SIZE][GRID_SIZE], markerGrid[GRID_SIZE][GRID_SIZE];
+uint8_t grid[GRID_SIZE][GRID_SIZE], markerGrid[GRID_SIZE][GRID_SIZE], selfMarkerGrid[GRID_SIZE][GRID_SIZE];
 Ship_t ships[3];
 uint32_t ADC_Data;
 uint8_t ADC_Flag = 0;
@@ -177,12 +177,12 @@ void drawMarker(uint8_t x, uint8_t y, uint16_t color) {
 	ST7735_DrawCircle(18*x + 5, 18*y + 5, color);
 }
 // Draw the players view of the enemy 
-void drawMarkers(void) {
+void drawMarkers(uint8_t mGrid[GRID_SIZE][GRID_SIZE]) {
 	for (int i = 0; i < GRID_SIZE; i++) {
 		for (int j = 0; j < GRID_SIZE; j++) {
-			if (markerGrid[i][j] == 1) {
+			if (mGrid[i][j] == 1) {
 				drawMarker(j, i, ST7735_RED);
-			} else if (markerGrid[i][j] == 2) {
+			} else if (mGrid[i][j] == 2) {
 				drawMarker(j, i, ST7735_WHITE);
 			}
 		}
@@ -408,7 +408,7 @@ int main(void){
 	PortE_Init();
 	PortF_Init();
   ST7735_InitR(INITR_REDTAB);
-	ST7735_SetRotation(3);
+	ST7735_SetRotation(1);
 	ADC_Init();
 	Fifo_Init();
 	UART_Init();
@@ -434,7 +434,7 @@ int main(void){
 					// Display marker grid
 					ST7735_FillScreen(ST7735_BLACK);
 					drawGrid();
-					drawMarkers();
+					drawMarkers(markerGrid);
 					// Get shot selection
 					Point_t shot = selectGrid();
 					// Send fire command
@@ -449,6 +449,7 @@ int main(void){
 					// Await response
 					data = 0;
 					while (Fifo_Get(datapt) == 0 || (data != 'H' && data != 'M')){}
+					Fifo_Get(datapt);
 					Fifo_Clear();
 					// Draw marker
 					if (data == 'H') {
@@ -463,6 +464,7 @@ int main(void){
 			} else {
 					ST7735_FillScreen(ST7735_BLACK);
 					drawGrid();
+					drawMarkers(selfMarkerGrid);
 					drawShips();
 					do {
 						// Await shot position
@@ -475,11 +477,13 @@ int main(void){
 						Fifo_Clear();
 						hit = grid[y][x] == 0 ? 0:1;
 						if (hit) {
+							selfMarkerGrid[y][x] = 1;
 							drawMarker(x, y, ST7735_RED);
 							for (int i = 0; i < 8; i++) {
 								UART_OutChar('H');
 							}
 						} else {
+							selfMarkerGrid[y][x] = 2;
 							drawMarker(x, y, ST7735_WHITE);
 							for (int i = 0; i < 8; i++) {
 								UART_OutChar('M');
