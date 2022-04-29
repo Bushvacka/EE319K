@@ -618,8 +618,12 @@ Point_t selectGrid(void) {
 	ST7735_OutString("2:");
 	ST7735_OutChar((char)(score2 + 0x30));
 	// Display winner
-	ST7735_SetCursor(7, 7);
-	ST7735_OutString((char *)Phrases[P1][language]);
+	ST7735_SetCursor(6, 6);
+	if (score1 >= 9) {
+		ST7735_OutString((char *)Phrases[P1][language]);
+	} else {
+		ST7735_OutString((char *)Phrases[P2][language]);
+	}
 	while (1) {
 		if (button3) {
 			button3 = 0; // Ack
@@ -629,11 +633,13 @@ Point_t selectGrid(void) {
 			} else {
 				language = English;
 			}
+			ST7735_SetCursor(6, 6);
+			ST7735_OutString("                 ");
 			if (score1 >= 9) {
-				ST7735_SetCursor(7, 7);
+				ST7735_SetCursor(6, 6);
 				ST7735_OutString((char *)Phrases[P1][language]);
 			} else {
-				ST7735_SetCursor(7, 7);
+				ST7735_SetCursor(6, 6);
 				ST7735_OutString((char *)Phrases[P2][language]);
 			}
 		}
