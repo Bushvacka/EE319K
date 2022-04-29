@@ -72,17 +72,20 @@ typedef struct Ship Ship_t;
 // Languages & Phrases
 typedef enum {English, Spanish} Language_t;
 Language_t language = English;
-typedef enum {Start, Wait, LANGUAGE} phrase_t;
+typedef enum {Start, Wait, P1, P2} phrase_t;
 const char Start_English[] ="Press Button";
 const char Start_Spanish[] ="Presione el Bot\xA2n";
 const char Wait_English[]="Waiting for Other Player";
 const char Wait_Spanish[]="Esperando a Otro Jugador";
-const char Language_English[]="English";
-const char Language_Spanish[]="Espa\xA4ol";
-const char *Phrases[3][2]={
+const char P1_English[]="Player 1 Wins";
+const char P1_Spanish[]="Jugador uno Ganar!";
+const char P2_English[]="Player 2 Wins!";
+const char P2_Spanish[]="Jugador dos Ganar!";
+const char *Phrases[4][2]={
   {Start_English,Start_Spanish},
   {Wait_English,Wait_Spanish},
-  {Language_English,Language_Spanish}
+  {P1_English,P1_Spanish},
+	{P2_English,P2_Spanish}
 };
 
 // Globals
@@ -90,6 +93,8 @@ uint8_t grid[GRID_SIZE][GRID_SIZE], markerGrid[GRID_SIZE][GRID_SIZE], selfMarker
 Ship_t ships[3];
 uint32_t ADC_Data;
 uint8_t ADC_Flag = 0;
+uint8_t player = Tx;
+uint8_t score1 = 0, score2 = 0;
 
 // Delay for 100ms count times
 void Delay100ms(uint32_t count){uint32_t volatile time;
@@ -140,12 +145,28 @@ uint32_t Convert(uint32_t data){
 // Wait for the other board
 void waitForSync(void) {
 	ST7735_FillScreen(ST7735_BLACK);
-	ST7735_SetCursor(0, 0);
+	ST7735_SetCursor(7, 7);
 	ST7735_OutString((char *)Phrases[Wait][language]);
 	char data = 0;
 	char *datapt = &data;
 	UART_OutString("R>>>");
-	while (data != 'R') {Fifo_Get(datapt);} // Wait for ready signal 
+	while (data != 'R') {
+		Fifo_Get(datapt);
+		if (button3) {
+			button3 = 0; // Ack
+			// Change language
+			if (language == English) {
+				language = Spanish;
+			} else {
+				language = English;
+			}
+			// Output new phrase
+			ST7735_SetCursor(7, 7);
+			ST7735_OutString("               ");
+			ST7735_SetCursor(7, 7);
+			ST7735_OutString((char *)Phrases[Wait][language]);
+		}
+	} // Wait for ready signal 
 	// Clear FIFO
 	uint8_t success;
 	do {
@@ -198,6 +219,7 @@ void drawShips(void) {
 		}
 	}
 }
+// Returns 1 if game is over
 uint8_t gameDone(void) {
 	uint8_t hit_counter = 0, enemy_hit_counter = 0;
 	for (int i = 0; i < GRID_SIZE; i++) {
@@ -216,6 +238,32 @@ uint8_t gameDone(void) {
 		return 0;
 	}
 }
+// Returns 1 if player 1(Tx) has won, and 2 if player 2 has won
+// Assumes game is complete
+uint8_t winner(void) {
+	uint8_t hit_counter = 0, enemy_hit_counter = 0;
+	for (int i = 0; i < GRID_SIZE; i++) {
+		for (int j = 0; j < GRID_SIZE; j++) {
+			if (markerGrid[i][j]) {
+				hit_counter++;
+			}
+			if (selfMarkerGrid[i][j]) {
+				enemy_hit_counter++;
+			}
+		}
+	}
+	if (Tx) {
+		if (hit_counter >= 9) {
+			return 1;
+		} else {
+		}
+	} else {
+		if (hit_counter >= 9) {
+			return 2;
+		}
+	}
+	return 0; // Error
+}
 // Returns true if the ship overlaps with another ship already on the grid
 uint8_t shipOverlap(Ship_t ship) {
 	for (int i = 0; i < ship.length; i++) {
@@ -233,7 +281,22 @@ void titleScreen(void) {
 	ST7735_DrawBitmap(38, 65, title, 79, 39);
 	ST7735_SetCursor(7, 7);
 	ST7735_OutString((char *)Phrases[0][language]);
-	while(button1 == 0) {} // Wait for button press
+	while(button1 == 0) {
+		if (button3) {
+			button3 = 0; // Ack
+			// Change language
+			if (language == English) {
+				language = Spanish;
+			} else {
+				language = English;
+			}
+			// Output new phrase
+			ST7735_SetCursor(7, 7);
+			ST7735_OutString("                  ");
+			ST7735_SetCursor(7, 7);
+			ST7735_OutString((char *)Phrases[Start][language]);
+		}
+	} // Wait for button press
 	button1 = 0; // Ack
 	ST7735_FillScreen(ST7735_BLACK); // Clear Screen
 }
@@ -373,6 +436,13 @@ void placeShips(void) {
 Point_t selectGrid(void) {
 	uint8_t markerX = 7, markerY = 7, newMarker; // 7 - Not yet selected
 	// Select x position
+	// Display score
+	ST7735_SetCursor(23, 0);
+	ST7735_OutString("1:");
+	ST7735_OutChar((char)score1);
+	ST7735_SetCursor(23, 3);
+	ST7735_OutString("2:");
+	ST7735_OutChar((char)score2);
 	while (button1 == 0 || markerX == 7) {
 		if (ADC_Flag) {
 			ADC_Flag = 0;
@@ -406,14 +476,14 @@ Point_t selectGrid(void) {
 }
 
 
-int main(void){
+ int main(void){
   DisableInterrupts();
 	//PLL_Init();
   TExaS_Init(NONE); // Bus clock is 80 MHz 
 	PortE_Init();
 	PortF_Init();
   ST7735_InitR(INITR_REDTAB);
-	ST7735_SetRotation(1);
+	ST7735_SetRotation(3);
 	ADC_Init();
 	Fifo_Init();
 	UART_Init();
@@ -430,7 +500,6 @@ int main(void){
 	placeShips();
 	waitForSync();
 	// Game Begins
-	uint8_t player = Tx;
 	char data = 0;
 	char *datapt = &data;
 	while (!gameDone()) {
@@ -462,11 +531,22 @@ int main(void){
 					if (hit) {
 						markerGrid[shot.y][shot.x] = 1;
 						drawMarker(shot.x, shot.y, ST7735_RED);
+						if (Tx) {
+							score1++;
+						} else {
+							score2++;
+						}
 					} else {
 						markerGrid[shot.y][shot.x] = 2;
 						drawMarker(shot.x, shot.y, ST7735_WHITE);
 					}
-					// Draw marker
+					// Display score
+					ST7735_SetCursor(23, 0);
+					ST7735_OutString("1:");
+					ST7735_OutChar((char)score1);
+					ST7735_SetCursor(23, 2);
+					ST7735_OutString("2:");
+					ST7735_OutChar((char)score2);
 				} while (hit && !gameDone());
 				player = (player + 1) % 2;
 			} else {
@@ -493,17 +573,52 @@ int main(void){
 							selfMarkerGrid[y][x] = 1;
 							drawMarker(x, y, ST7735_RED);
 							UART_OutString("H..>");
+							if (Tx) {
+								score2++;
+							} else {
+								score1++;
+							}
 						} else {
 							selfMarkerGrid[y][x] = 2;
 							drawMarker(x, y, ST7735_WHITE);
 							UART_OutString("M..>");
 						}
+						// Display score
+						ST7735_SetCursor(23, 0);
+						ST7735_OutString("1:");
+						ST7735_OutChar((char)score1);
+						ST7735_SetCursor(23, 2);
+						ST7735_OutString("2:");
+						ST7735_OutChar((char)score2);
 					} while (hit && !gameDone());
 					player = (player + 1) % 2;
 			}
 	}		
-	
+	uint8_t winning_player = winner();
 	ST7735_FillScreen(ST7735_BLACK);
-	ST7735_SetCursor(0, 0);
-	ST7735_OutString("YOU WON");
+	// Display score
+	ST7735_SetCursor(1, 1);
+	ST7735_OutString("1:");
+	ST7735_OutChar((char)score1);
+	ST7735_SetCursor(1, 3);
+	ST7735_OutString("2:");
+	ST7735_OutChar((char)score2);
+	// Display winner
+	ST7735_SetCursor(7, 7);
+	while (1) {
+		if (button3) {
+			button3 = 0; // Ack
+			// Change language
+			if (language == English) {
+				language = Spanish;
+			} else {
+				language = English;
+			}
+			if (winning_player == 1) {
+				ST7735_OutString((char *)Phrases[P1][language]);
+			} else {
+				ST7735_OutString((char *)Phrases[P2][language]);
+			}
+		}
+	}
 }
