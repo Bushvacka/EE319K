@@ -519,7 +519,9 @@ Point_t selectGrid(void) {
 					// Get shot selection
 					Point_t shot = selectGrid();
 					// Play fire sound
-					Sound_Start(4080);
+					if (Tx) {
+						Sound_Start(4080);
+					}
 					// Send fire command
 					UART_OutChar('F');
 					char msg = shot.x + 0x30;
@@ -583,7 +585,10 @@ Point_t selectGrid(void) {
 							Fifo_Get(datapt);
 						}
 						hit = grid[y][x] == 0 ? 0:1;
-						
+						// Fire sound
+						if (Tx) {
+							Sound_Start(4080);
+						}
 						if (hit) {
 							selfMarkerGrid[y][x] = 1;
 							drawMarker(x, y, ST7735_RED);
