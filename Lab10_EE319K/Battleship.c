@@ -78,9 +78,9 @@ const char Start_Spanish[] ="Presione el Bot\xA2n";
 const char Wait_English[]="Waiting for Other Player";
 const char Wait_Spanish[]="Esperando a Otro Jugador";
 const char P1_English[]="Player 1 Wins";
-const char P1_Spanish[]="Jugador uno Ganar!";
+const char P1_Spanish[]="Jugador uno Gana!";
 const char P2_English[]="Player 2 Wins!";
-const char P2_Spanish[]="Jugador dos Ganar!";
+const char P2_Spanish[]="Jugador dos Gana!";
 const char *Phrases[4][2]={
   {Start_English,Start_Spanish},
   {Wait_English,Wait_Spanish},
@@ -145,7 +145,7 @@ uint32_t Convert(uint32_t data){
 // Wait for the other board
 void waitForSync(void) {
 	ST7735_FillScreen(ST7735_BLACK);
-	ST7735_SetCursor(7, 7);
+	ST7735_SetCursor(1, 6);
 	ST7735_OutString((char *)Phrases[Wait][language]);
 	char data = 0;
 	char *datapt = &data;
@@ -161,9 +161,9 @@ void waitForSync(void) {
 				language = English;
 			}
 			// Output new phrase
-			ST7735_SetCursor(7, 7);
+			ST7735_SetCursor(1, 6);
 			ST7735_OutString("               ");
-			ST7735_SetCursor(7, 7);
+			ST7735_SetCursor(1, 6);
 			ST7735_OutString((char *)Phrases[Wait][language]);
 		}
 	} // Wait for ready signal 
@@ -437,12 +437,12 @@ Point_t selectGrid(void) {
 	uint8_t markerX = 7, markerY = 7, newMarker; // 7 - Not yet selected
 	// Select x position
 	// Display score
-	ST7735_SetCursor(23, 0);
+	ST7735_SetCursor(22, 0);
 	ST7735_OutString("1:");
-	ST7735_OutChar((char)score1);
-	ST7735_SetCursor(23, 3);
+	ST7735_OutChar((char)(score1 + 0x30));
+	ST7735_SetCursor(22, 2);
 	ST7735_OutString("2:");
-	ST7735_OutChar((char)score2);
+	ST7735_OutChar((char)(score2 + 0x30));
 	while (button1 == 0 || markerX == 7) {
 		if (ADC_Flag) {
 			ADC_Flag = 0;
@@ -541,12 +541,12 @@ Point_t selectGrid(void) {
 						drawMarker(shot.x, shot.y, ST7735_WHITE);
 					}
 					// Display score
-					ST7735_SetCursor(23, 0);
+					ST7735_SetCursor(22, 0);
 					ST7735_OutString("1:");
-					ST7735_OutChar((char)score1);
-					ST7735_SetCursor(23, 2);
+					ST7735_OutChar((char)(score1 + 0x30));
+					ST7735_SetCursor(22, 2);
 					ST7735_OutString("2:");
-					ST7735_OutChar((char)score2);
+					ST7735_OutChar((char)(score2 + 0x30));
 				} while (hit && !gameDone());
 				player = (player + 1) % 2;
 			} else {
@@ -584,12 +584,12 @@ Point_t selectGrid(void) {
 							UART_OutString("M..>");
 						}
 						// Display score
-						ST7735_SetCursor(23, 0);
+						ST7735_SetCursor(22, 0);
 						ST7735_OutString("1:");
-						ST7735_OutChar((char)score1);
-						ST7735_SetCursor(23, 2);
+						ST7735_OutChar((char)(score1 + 0x30));
+						ST7735_SetCursor(22, 2);
 						ST7735_OutString("2:");
-						ST7735_OutChar((char)score2);
+						ST7735_OutChar((char)(score1 + 0x30));
 					} while (hit && !gameDone());
 					player = (player + 1) % 2;
 			}
@@ -599,10 +599,10 @@ Point_t selectGrid(void) {
 	// Display score
 	ST7735_SetCursor(1, 1);
 	ST7735_OutString("1:");
-	ST7735_OutChar((char)score1);
+	ST7735_OutChar((char)(score1 + 0x30));
 	ST7735_SetCursor(1, 3);
 	ST7735_OutString("2:");
-	ST7735_OutChar((char)score2);
+	ST7735_OutChar((char)(score1 + 0x30));
 	// Display winner
 	ST7735_SetCursor(7, 7);
 	while (1) {
