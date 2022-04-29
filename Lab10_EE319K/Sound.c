@@ -12,7 +12,7 @@
 
 #define TIMER_PRIO 4
 
-const uint8_t shoot[4080] = {
+const uint8_t shoot_sound[4080] = {
   129, 99, 103, 164, 214, 129, 31, 105, 204, 118, 55, 92, 140, 225, 152, 61, 84, 154, 184, 101, 
   75, 129, 209, 135, 47, 94, 125, 207, 166, 72, 79, 135, 195, 118, 68, 122, 205, 136, 64, 106, 
   143, 173, 105, 54, 122, 200, 133, 74, 106, 215, 236, 91, 43, 84, 163, 115, 34, 81, 150, 209, 
@@ -1170,8 +1170,8 @@ void Timer0A_Handler(void){ // called at 11 kHz
 //        count is the length of the array
 // Output: none
 // special cases: as you wish to implement
-void Sound_Start(const uint8_t *pt, uint32_t count){
-	sound = pt;
+void Sound_Start(uint32_t count){
+	sound = shoot_sound;
 	length = count;
 	Timer0_Start();
 };
