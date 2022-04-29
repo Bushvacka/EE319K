@@ -11,6 +11,7 @@
 
 extern uint8_t button1;
 extern uint8_t button2;
+extern uint8_t button3;
 extern uint32_t previous_data;
 // Initialize SysTick for sampling PortE
 void SysTick_Init(uint32_t period, uint32_t priority);
