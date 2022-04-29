@@ -502,9 +502,16 @@ Point_t selectGrid(void) {
 	// Game Begins
 	char data = 0;
 	char *datapt = &data;
-	while (!gameDone()) {
+	while (!(score1 >= 9 || score2 >= 9)) {
 			if (player) {
 				uint8_t hit;
+				// Display score
+				ST7735_SetCursor(22, 0);
+				ST7735_OutString("1:");
+				ST7735_OutChar((char)(score1 + 0x30));
+				ST7735_SetCursor(22, 2);
+				ST7735_OutString("2:");
+				ST7735_OutChar((char)(score2 + 0x30));
 				do {
 					// Display marker grid
 					ST7735_FillScreen(ST7735_BLACK);
@@ -547,7 +554,7 @@ Point_t selectGrid(void) {
 					ST7735_SetCursor(22, 2);
 					ST7735_OutString("2:");
 					ST7735_OutChar((char)(score2 + 0x30));
-				} while (hit && !gameDone());
+				} while (hit && !(score1 >= 9 || score2 >= 9));
 				player = (player + 1) % 2;
 			} else {
 					uint8_t hit;
@@ -555,6 +562,13 @@ Point_t selectGrid(void) {
 					drawGrid();
 					drawShips();
 					drawMarkers(selfMarkerGrid);
+					// Display score
+					ST7735_SetCursor(22, 0);
+					ST7735_OutString("1:");
+					ST7735_OutChar((char)(score1 + 0x30));
+					ST7735_SetCursor(22, 2);
+					ST7735_OutString("2:");
+					ST7735_OutChar((char)(score2 + 0x30));
 					do {
 						// Await shot position
 						data = 0;
@@ -589,12 +603,12 @@ Point_t selectGrid(void) {
 						ST7735_OutChar((char)(score1 + 0x30));
 						ST7735_SetCursor(22, 2);
 						ST7735_OutString("2:");
-						ST7735_OutChar((char)(score1 + 0x30));
-					} while (hit && !gameDone());
+						ST7735_OutChar((char)(score2 + 0x30));
+					} while (hit && !(score1 >= 9 || score2 >= 9));
 					player = (player + 1) % 2;
 			}
 	}		
-	uint8_t winning_player = winner();
+
 	ST7735_FillScreen(ST7735_BLACK);
 	// Display score
 	ST7735_SetCursor(1, 1);
@@ -602,9 +616,10 @@ Point_t selectGrid(void) {
 	ST7735_OutChar((char)(score1 + 0x30));
 	ST7735_SetCursor(1, 3);
 	ST7735_OutString("2:");
-	ST7735_OutChar((char)(score1 + 0x30));
+	ST7735_OutChar((char)(score2 + 0x30));
 	// Display winner
 	ST7735_SetCursor(7, 7);
+	ST7735_OutString((char *)Phrases[P1][language]);
 	while (1) {
 		if (button3) {
 			button3 = 0; // Ack
@@ -614,9 +629,11 @@ Point_t selectGrid(void) {
 			} else {
 				language = English;
 			}
-			if (winning_player == 1) {
+			if (score1 >= 9) {
+				ST7735_SetCursor(7, 7);
 				ST7735_OutString((char *)Phrases[P1][language]);
 			} else {
+				ST7735_SetCursor(7, 7);
 				ST7735_OutString((char *)Phrases[P2][language]);
 			}
 		}
