@@ -492,7 +492,6 @@ Point_t selectGrid(void) {
 	SysTick_Init(80000000/5, SYSTICK_PRIO);
 	Random_Init(NVIC_ST_CURRENT_R);
 	EnableInterrupts();
-	
 	// Main Menu
 	titleScreen();
 	// Ship Placement
@@ -519,6 +518,8 @@ Point_t selectGrid(void) {
 					drawMarkers(markerGrid);
 					// Get shot selection
 					Point_t shot = selectGrid();
+					// Play fire sound
+					Sound_Start(4080);
 					// Send fire command
 					UART_OutChar('F');
 					char msg = shot.x + 0x30;
