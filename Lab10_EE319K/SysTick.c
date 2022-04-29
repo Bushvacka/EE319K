@@ -11,6 +11,7 @@
 
 uint8_t button1;
 uint8_t button2;
+uint8_t button3;
 uint32_t previous_data;
 
 // Initialize SysTick for sampling the ADC
@@ -35,10 +36,9 @@ void SysTick_Handler(void) {
 	else if ((data & 0x4) == 0x4 && (previous_data & 0x4) == 0) { // Button 2 - Rotate ship
 	button2 = 1;
 	}
-	/*else if((data & 0x2) == 0x2 && (previous_data & 0x2) == 0) { // Button 3 - Language Change
-		if (language == English) {language = Spanish;} 
-		else {language = English;}
-	}*/
+	else if((data & 0x2) == 0x2 && (previous_data & 0x2) == 0) { // Button 3 - Language Change
+	button3 = 1;
+	}
 	previous_data = data;
 }
 
