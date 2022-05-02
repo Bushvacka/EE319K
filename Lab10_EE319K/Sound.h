@@ -10,15 +10,8 @@
 
 void Sound_Init(void);
 
-//******* Sound_Start ************
-// This function does not output to the DAC. 
-// Rather, it sets a pointer and counter, and then enables the timer interrupt.
-// It starts the sound, and the timer ISR does the output
-// feel free to change the parameters
-// Input: pt is a pointer to an array of DAC outputs
-//        count is the length of the array
-// Output: none
-// special cases: as you wish to implement
-void Sound_Start(uint32_t count);
+void Play_Hit_Sound(void);
+
+void Play_Miss_Sound(void);
 
 #endif
