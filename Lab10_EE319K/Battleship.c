@@ -49,10 +49,11 @@ int PLL_Init(void);
 #define TIMER1_PRIO 2
 // Game Constants
 #define GRID_SIZE 7
-#define COL_SEA ST7735_Color565(65,105,225)
+#define COL_SEA ST7735_Color565(0,148,255)
 #define COL_MARKER ST7735_Color565(255,69,0)
 #define COL_SHIP ST7735_Color565(255,215,0)
 #define NUM_SHIPS 3
+#define ROTATION 3
 
 // Grid points
 struct Point {
@@ -63,9 +64,11 @@ typedef struct Point Point_t;
 
 // Ship
 struct Ship {
-	Point_t squares[4];
-	uint8_t hit[4];
+	Point_t origin;
+	uint8_t dir;
 	uint8_t length;
+	const uint16_t *image;
+	uint8_t w, h;
 };
 typedef struct Ship Ship_t;
 
@@ -87,6 +90,7 @@ const char *Phrases[4][2]={
   {P1_English,P1_Spanish},
 	{P2_English,P2_Spanish}
 };
+
 
 // Globals
 uint8_t grid[GRID_SIZE][GRID_SIZE], markerGrid[GRID_SIZE][GRID_SIZE], selfMarkerGrid[GRID_SIZE][GRID_SIZE];
@@ -176,13 +180,20 @@ void waitForSync(void) {
 }
 // Draw Battleship sea and gridlines.
 void drawGrid(void) {
-	ST7735_FillRect(1, 1, 125, 125, COL_SEA);
 	for (int i = 0; i < GRID_SIZE + 1; i++) {
 		ST7735_DrawFastVLine(18*i, 0, 127, ST7735_WHITE);
 		ST7735_DrawFastHLine(0, 18*i, 127, ST7735_WHITE);
 	}
 }
-
+// Display player scores
+void displayScores(uint8_t x, uint8_t y) {
+	ST7735_SetCursor(x, y);
+	ST7735_OutString("1:");
+	ST7735_OutChar((char)(score1 + 0x30));
+	ST7735_SetCursor(x, y + 2);
+	ST7735_OutString("2:");
+	ST7735_OutChar((char)(score2 + 0x30));
+}
 // Highlight a grid square to indicate the selected grid position
 void drawCrosshair(uint8_t x, uint8_t y, uint16_t color) {
 	ST7735_DrawFastVLine(18*x, 18*y, 19, color); // Left
@@ -211,69 +222,49 @@ void drawMarkers(uint8_t mGrid[GRID_SIZE][GRID_SIZE]) {
 		}
 	}
 }
+// Draws one ship to the screen
+void drawShip(Ship_t ship) {
+	if (ship.dir) { // Vertical
+		ST7735_SetRotation((ROTATION + 3) % 3); // Vertical Rotation
+		ST7735_DrawBitmap(18*ship.origin.y + 1, 158 - 18*ship.origin.x, ship.image, ship.w, ship.h);
+		ST7735_SetRotation(ROTATION); // Reset rotation
+	} else {
+		ST7735_DrawBitmap(18*ship.origin.x + 1, 18*ship.origin.y + ship.h, ship.image, ship.w, ship.h);
+	}
+	if (ship.dir)  { // Reset rotation
+		ST7735_SetRotation(ROTATION);
+	}
+}
 // Draws all ships to the screen
 void drawShips(void) {
 	for (int i = 0; i < NUM_SHIPS; i++) {
-		for (int j = 0; j < ships[i].length; j++) {
-			fillSquare(ships[i].squares[j].x, ships[i].squares[j].y, COL_SHIP);
-		}
+		drawShip(ships[i]);
 	}
-}
-// Returns 1 if game is over
-uint8_t gameDone(void) {
-	uint8_t hit_counter = 0, enemy_hit_counter = 0;
-	for (int i = 0; i < GRID_SIZE; i++) {
-		for (int j = 0; j < GRID_SIZE; j++) {
-			if (markerGrid[i][j]) {
-				hit_counter++;
-			}
-			if (selfMarkerGrid[i][j]) {
-				enemy_hit_counter++;
-			}
-		}
-	}
-	if (hit_counter >= 9 || enemy_hit_counter >= 9) {
-		return 1;
-	} else {
-		return 0;
-	}
-}
-// Returns 1 if player 1(Tx) has won, and 2 if player 2 has won
-// Assumes game is complete
-uint8_t winner(void) {
-	uint8_t hit_counter = 0, enemy_hit_counter = 0;
-	for (int i = 0; i < GRID_SIZE; i++) {
-		for (int j = 0; j < GRID_SIZE; j++) {
-			if (markerGrid[i][j]) {
-				hit_counter++;
-			}
-			if (selfMarkerGrid[i][j]) {
-				enemy_hit_counter++;
-			}
-		}
-	}
-	if (Tx) {
-		if (hit_counter >= 9) {
-			return 1;
-		} else {
-		}
-	} else {
-		if (hit_counter >= 9) {
-			return 2;
-		}
-	}
-	return 0; // Error
 }
 // Returns true if the ship overlaps with another ship already on the grid
 uint8_t shipOverlap(Ship_t ship) {
 	for (int i = 0; i < ship.length; i++) {
-		uint8_t x = ship.squares[i].x;
-		uint8_t y = ship.squares[i].y;
+		uint8_t x = ship.dir ? ship.origin.x : ship.origin.x + i;
+		uint8_t y = ship.dir ? ship.origin.y + i : ship.origin.y;
 		if (grid[y][x]) {
 			return 1; // Overlap
 		}
 	}
 	return 0; // No overlap
+}
+// Returns the index of the ship that occupies a grid position
+uint8_t position2Ship(uint8_t x, uint8_t y) {
+	for (int i = 0; i < NUM_SHIPS; i++) {
+		Ship_t ship = ships[i];
+		for (int j = 0; j < ship.length; j++) {
+			uint8_t segmentX = ship.dir ? ship.origin.x : ship.origin.x + j;
+			uint8_t segmentY = ship.dir ? ship.origin.y + j : ship.origin.y;
+			if (segmentX == x && segmentY == y) { // Ship found
+				return i;
+			}
+		}
+	}
+	return 0; // Error
 }
 // Display the title sequence.
 void titleScreen(void) {
@@ -313,69 +304,86 @@ void placeShips(void) {
 	
 	// 3 Ships - lengths ranging from 2 to 4
 	for (int length = 2; length <= 4; length++) {
-		uint8_t x = 7, y = 7, newPos, dir = 0;
+		uint8_t x = 7, y = 7, newPos;
 		Ship_t ship;
+		ship.origin.y = 0;
+		ship.dir = 0;
 		ship.length = length;
-		for (int i = 0; i < length; i++) {
-			ship.hit[i] = 0;
+		if (length == 2) {
+			ship.image = PatrolBoat;
+			ship.w = 35;
+			ship.h = 17;
+		} else if (length == 3) {
+			ship.image = Cruiser;
+			ship.w = 53;
+			ship.h = 17;
+		} else {
+			ship.image = BattleShip;
+			ship.w = 71;
+			ship.h =   17;
 		}
 		
 		// Select x position
 		while (button1 == 0 || x == 7) {
 			if (button2) {
-				if (dir && x == GRID_SIZE - 1) { // Vertical and at right edge
+				if (ship.dir && x == GRID_SIZE - 1) { // Vertical and at right edge
 					button2 = 0; // Ignore
 				} else {
-					dir = (dir + 1) % 2;
+					ship.dir = (ship.dir + 1) % 2; // Update direction
 				}
 			}
 			
-			if (ADC_Flag) {
+			if (ADC_Flag) { // Updated position available
 				ADC_Flag = 0;
 				newPos = Convert(ADC_Data);
 				
 				// Check bounds
-				if (dir == 0 && newPos + length - 1 >= GRID_SIZE) { // Horizontal
+				if (ship.dir == 0 && newPos + length - 1 >= GRID_SIZE) { // Horizontal
 					continue;
 				}
 				
 				// Clean up old position
 				if ((newPos != x && x != 7) || button2) {
 					if (button2) {
-						button2 = 0; // Ack
+						ship.dir = (ship.dir + 1) % 2; // Old direction
 					}
 					for (int i = 0; i < ship.length; i++) {
-						fillSquare(ship.squares[i].x, ship.squares[i].y, grid[ship.squares[i].y][ship.squares[i].x] ? COL_SHIP : COL_SEA);
+						uint8_t segmentX = ship.dir ? ship.origin.x : ship.origin.x + i;
+						uint8_t segmentY = ship.dir ? ship.origin.y + i : ship.origin.y;
+						if (grid[segmentY][segmentX]) { // Redraw old ship
+							// Find old ship
+							uint8_t j = position2Ship(segmentX, segmentY);
+							drawShip(ships[j]);
+						} else { // Replace with sea
+							fillSquare(segmentX, segmentY, COL_SEA); 
+						}
+					}
+					if (button2) {
+						button2 = 0; // Ack
+						ship.dir = (ship.dir + 1) % 2; // Restore direction
 					}
 				}
-				if (dir) { // Vertical
-					for (int i = 0; i < length; i++) {
-						ship.squares[i].x = newPos;
-						ship.squares[i].y = i;
-						fillSquare(ship.squares[i].x, ship.squares[i].y, COL_SHIP);
-					}
-				} else { // Horizontal
-					for (int i = 0; i < length; i++) {
-						ship.squares[i].x = newPos + i;
-						ship.squares[i].y = 0;
-						fillSquare(ship.squares[i].x, ship.squares[i].y, COL_SHIP);
-					}
-				}
-				
-				x = newPos;		
+				// Update ship position
+				ship.origin.x = newPos;	
+				x = newPos;
+				// Draw ship
+				drawShip(ship);
+				drawGrid();
 			}
 		}
 		button1 = 0; // Ack
-		uint8_t nextAxis = 0; // Ready to place?
-		while (!nextAxis) {
+		
+		// Select y position
+		uint8_t finishedPlacing = 0;
+		while (!finishedPlacing) {
 			if (button2) {
-				if (dir == 0 && y == GRID_SIZE - 1) { // Horizontal and at bottom edge
+				if (ship.dir == 0 && y == GRID_SIZE - 1) { // Horizontal and at bottom edge
 					button2 = 0; // Ignore
-				} else if(dir && x == GRID_SIZE - 1) {
+				} else if(ship.dir && x == GRID_SIZE - 1) {
 					button2 = 0;
 				}
 				else {
-					dir = (dir + 1) % 2;
+					ship.dir = (ship.dir + 1) % 2;
 				}
 			}
 				
@@ -384,32 +392,36 @@ void placeShips(void) {
 				newPos = Convert(ADC_Data);
 				
 				// Check bounds
-				if (dir && newPos + length - 1 >= GRID_SIZE) { // Horizontal
+				if (ship.dir && newPos + length - 1 >= GRID_SIZE) { // Horizontal
 					continue;
 				}
+				
 				// Clean up old position
-				if ((newPos != y) || button2) {
+				if (newPos != y || button2) {
 					if (button2) {
-						button2 = 0; // Ack
+						ship.dir = (ship.dir + 1) % 2; // Old direction
 					}
 					for (int i = 0; i < ship.length; i++) {
-						fillSquare(ship.squares[i].x, ship.squares[i].y, grid[ship.squares[i].y][ship.squares[i].x] ? COL_SHIP : COL_SEA);
+						uint8_t segmentX = ship.dir ? ship.origin.x : ship.origin.x + i;
+						uint8_t segmentY = ship.dir ? ship.origin.y + i : ship.origin.y;
+						if (grid[segmentY][segmentX]) { // Redraw old ship
+							// Find old ship
+							drawShip(ships[position2Ship(segmentX, segmentY)]);
+						} else { // Replace with sea
+							fillSquare(segmentX, segmentY, COL_SEA); 
+						}
+					}
+					if (button2) {
+						button2 = 0; // Ack
+						ship.dir = (ship.dir + 1) % 2; // Restore direction
 					}
 				}
-				if (dir) { // Vertical
-					for (int i = 0; i < length; i++) {
-						ship.squares[i].x = x;
-						ship.squares[i].y = newPos + i;
-						fillSquare(ship.squares[i].x, ship.squares[i].y, COL_SHIP);
-					}
-				} else { // Horizontal
-					for (int i = 0; i < length; i++) {
-						ship.squares[i].x = x + i;
-						ship.squares[i].y = newPos;
-						fillSquare(ship.squares[i].x, ship.squares[i].y, COL_SHIP);
-					}
-				}
+				
+				// Update ship position
+				ship.origin.y = newPos;
 				y = newPos;
+				drawShip(ship); // Draw ship
+				drawGrid();
 			}
 			
 			// Check if ship placement is done
@@ -417,17 +429,19 @@ void placeShips(void) {
 				if (shipOverlap(ship)) {
 					button1 = 0; // Ignore
 				} else {
-					nextAxis = 1;
+					finishedPlacing = 1;
 				}
 			} else {
-				nextAxis = 0;
+				finishedPlacing = 0;
 			}
 		}
 		button1 = 0; // ACk
 		
 		// Save ship
 		for (int i = 0; i < ship.length; i++) {
-			grid[ship.squares[i].y][ship.squares[i].x] = 1;
+			uint8_t segmentX = ship.dir ? ship.origin.x : ship.origin.x + i;
+			uint8_t segmentY = ship.dir ? ship.origin.y + i : ship.origin.y;
+			grid[segmentY][segmentX] = 1;
 		}
 		ships[length - 2] = ship;
 	}
@@ -477,13 +491,13 @@ Point_t selectGrid(void) {
 
 
  int main(void){
+	// Initializations
   DisableInterrupts();
-	//PLL_Init();
-  TExaS_Init(NONE); // Bus clock is 80 MHz 
+  TExaS_Init(NONE);
 	PortE_Init();
 	PortF_Init();
   ST7735_InitR(INITR_REDTAB);
-	ST7735_SetRotation(3);
+	ST7735_SetRotation(ROTATION);
 	ADC_Init();
 	Fifo_Init();
 	UART_Init();
@@ -492,36 +506,30 @@ Point_t selectGrid(void) {
 	SysTick_Init(80000000/5, SYSTICK_PRIO);
 	Random_Init(NVIC_ST_CURRENT_R);
 	EnableInterrupts();
+	char data = 0;
+	char *datapt = &data;
+	
 	// Main Menu
 	titleScreen();
 	// Ship Placement
+	ST7735_FillRect(1, 1, 125, 125, COL_SEA);
 	drawGrid();
 	placeShips();
 	waitForSync();
 	// Game Begins
-	char data = 0;
-	char *datapt = &data;
 	while (!(score1 >= 9 || score2 >= 9)) {
 			if (player) {
 				uint8_t hit;
-				// Display score
-				ST7735_SetCursor(22, 0);
-				ST7735_OutString("1:");
-				ST7735_OutChar((char)(score1 + 0x30));
-				ST7735_SetCursor(22, 2);
-				ST7735_OutString("2:");
-				ST7735_OutChar((char)(score2 + 0x30));
 				do {
-					// Display marker grid
+					// Display layers
 					ST7735_FillScreen(ST7735_BLACK);
+					ST7735_FillRect(1, 1, 125, 125, COL_SEA);
 					drawGrid();
 					drawMarkers(markerGrid);
+					
 					// Get shot selection
 					Point_t shot = selectGrid();
-					// Play fire sound
-					if (Tx) {
-						Sound_Start(4080);
-					}
+
 					// Send fire command
 					UART_OutChar('F');
 					char msg = shot.x + 0x30;
@@ -529,122 +537,131 @@ Point_t selectGrid(void) {
 					msg = shot.y + 0x30;
 					UART_OutChar(msg);
 					UART_OutChar('>');
-					// Await response
+					
 					data = 0;
-					while (Fifo_Get(datapt) == 0 || (data != 'H' && data != 'M')){}
-					hit = data == 'H' ? 1 : 0;
+					while (Fifo_Get(datapt) == 0 || (data != 'H' && data != 'M')){} // Await response
+
+					hit = data == 'H' ? 1 : 0; // Response recieved
+					
 					// Clear FIFO
 					while (data != '>') {
 						Fifo_Get(datapt);
 					}
-					// 
-					if (hit) {
+					
+					if (hit) { // Hit
+						// Store & draw marker
 						markerGrid[shot.y][shot.x] = 1;
 						drawMarker(shot.x, shot.y, ST7735_RED);
+						
+						// Add to respective score
 						if (Tx) {
 							score1++;
 						} else {
 							score2++;
 						}
-					} else {
+						
+						// Play hit sound
+						if (Tx) {Play_Hit_Sound();}
+					} else { // Miss
+						// Store & draw marker
 						markerGrid[shot.y][shot.x] = 2;
 						drawMarker(shot.x, shot.y, ST7735_WHITE);
+						
+						// Play miss sound
+						if (Tx) {Play_Miss_Sound();}
 					}
-					// Display score
-					ST7735_SetCursor(22, 0);
-					ST7735_OutString("1:");
-					ST7735_OutChar((char)(score1 + 0x30));
-					ST7735_SetCursor(22, 2);
-					ST7735_OutString("2:");
-					ST7735_OutChar((char)(score2 + 0x30));
-				} while (hit && !(score1 >= 9 || score2 >= 9));
-				player = (player + 1) % 2;
+					displayScores(22, 0); // Display player scores
+				} while (hit && !(score1 >= 9 || score2 >= 9)); // Continue until player misses or game is over
+				player = (player + 1) % 2; // Swap player
 			} else {
 					uint8_t hit;
-					ST7735_FillScreen(ST7735_BLACK);
-					drawGrid();
-					drawShips();
-					drawMarkers(selfMarkerGrid);
-					// Display score
-					ST7735_SetCursor(22, 0);
-					ST7735_OutString("1:");
-					ST7735_OutChar((char)(score1 + 0x30));
-					ST7735_SetCursor(22, 2);
-					ST7735_OutString("2:");
-					ST7735_OutChar((char)(score2 + 0x30));
+					displayScores(22, 0);
 					do {
-						// Await shot position
+						// Draw layers
+						ST7735_FillScreen(ST7735_BLACK);
+						ST7735_FillRect(1, 1, 125, 125, COL_SEA);
+						drawShips();
+						drawGrid();
+						drawMarkers(selfMarkerGrid);
+						displayScores(22, 0); // Display player scores
+
 						data = 0;
-						while (Fifo_Get(datapt) == 0 || data != 'F') {}
+						while (Fifo_Get(datapt) == 0 || data != 'F') {} // Await fire message
+						
+						// Shot position recieved
 						Fifo_Get(datapt);
 						uint8_t x = data - 0x30;
 						Fifo_Get(datapt);
 						uint8_t y = data - 0x30;
+						
 						// Clear FIFO
 						while (data != '>') {
 							Fifo_Get(datapt);
 						}
 						hit = grid[y][x] == 0 ? 0:1;
+						
 						// Fire sound
-						if (Tx) {
-							Sound_Start(4080);
-						}
-						if (hit) {
+						
+						if (hit) { // Hit
+							// Store & draw marker
 							selfMarkerGrid[y][x] = 1;
 							drawMarker(x, y, ST7735_RED);
-							UART_OutString("H..>");
+							
+							// Add to respective score
 							if (Tx) {
 								score2++;
 							} else {
 								score1++;
 							}
+							
+							// Play hit sound
+							if (Tx) {Play_Hit_Sound();}
+							
+							// Send hit response
+							UART_OutString("H..>");
 						} else {
+							// Store & draw marker
 							selfMarkerGrid[y][x] = 2;
 							drawMarker(x, y, ST7735_WHITE);
+							
+							// Play miss sound
+							if (Tx) {Play_Miss_Sound();}
+							// Send miss response
 							UART_OutString("M..>");
 						}
-						// Display score
-						ST7735_SetCursor(22, 0);
-						ST7735_OutString("1:");
-						ST7735_OutChar((char)(score1 + 0x30));
-						ST7735_SetCursor(22, 2);
-						ST7735_OutString("2:");
-						ST7735_OutChar((char)(score2 + 0x30));
-					} while (hit && !(score1 >= 9 || score2 >= 9));
-					player = (player + 1) % 2;
+					} while (hit && !(score1 >= 9 || score2 >= 9)); // Continue until player misses or game is over
+					player = (player + 1) % 2; // Swap player
 			}
 	}		
-
+	
+	// Game Over
 	ST7735_FillScreen(ST7735_BLACK);
-	// Display score
-	ST7735_SetCursor(1, 1);
-	ST7735_OutString("1:");
-	ST7735_OutChar((char)(score1 + 0x30));
-	ST7735_SetCursor(1, 3);
-	ST7735_OutString("2:");
-	ST7735_OutChar((char)(score2 + 0x30));
+	displayScores(1, 1); // Display player scores
+	
 	// Display winner
 	ST7735_SetCursor(6, 6);
-	if (score1 >= 9) {
+	if (score1 >= 9) { // Player 1 win
 		ST7735_OutString((char *)Phrases[P1][language]);
-	} else {
+	} else { // Player 2 win
 		ST7735_OutString((char *)Phrases[P2][language]);
 	}
+	
 	while (1) {
-		if (button3) {
+		if (button3) { // Language change
 			button3 = 0; // Ack
-			// Change language
 			if (language == English) {
 				language = Spanish;
 			} else {
 				language = English;
 			}
+			
+			// Update displayed message
 			ST7735_SetCursor(6, 6);
 			ST7735_OutString("                 ");
-			if (score1 >= 9) {
+			if (score1 >= 9) { // Player 1 win
 				ST7735_SetCursor(6, 6);
 				ST7735_OutString((char *)Phrases[P1][language]);
-			} else {
+			} else { // Player 2 win
 				ST7735_SetCursor(6, 6);
 				ST7735_OutString((char *)Phrases[P2][language]);
 			}
